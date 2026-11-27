@@ -3829,14 +3829,17 @@ const DOMINANT_PROGRESSIONS = [
           const container = chordScrollRef.current;
           const diag = chordDiagramRefs.current[activeChordIdx];
           if (!container || !diag) return;
-          const diagLeft = diag.offsetLeft;
-          const diagRight = diagLeft + diag.offsetWidth;
+          // Use getBoundingClientRect so position is correct regardless of offsetParent
+          const cRect = container.getBoundingClientRect();
+          const dRect = diag.getBoundingClientRect();
+          const diagScrollLeft = container.scrollLeft + (dRect.left - cRect.left);
+          const diagScrollRight = diagScrollLeft + dRect.width;
           const viewLeft = container.scrollLeft;
           const viewRight = viewLeft + container.clientWidth;
-          if (diagLeft < viewLeft + 8) {
-            container.scrollTo({ left: diagLeft - 8, behavior: 'smooth' });
-          } else if (diagRight > viewRight - 8) {
-            container.scrollTo({ left: diagRight - container.clientWidth + 8, behavior: 'smooth' });
+          if (diagScrollLeft < viewLeft + 8) {
+            container.scrollTo({ left: Math.max(0, diagScrollLeft - 8), behavior: 'smooth' });
+          } else if (diagScrollRight > viewRight - 8) {
+            container.scrollTo({ left: diagScrollRight - container.clientWidth + 8, behavior: 'smooth' });
           }
         }, [isPlaying, activeChordIdx, showChords]);
 
