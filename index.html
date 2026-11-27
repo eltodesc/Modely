@@ -3795,6 +3795,8 @@ const DOMINANT_PROGRESSIONS = [
         const [flashedIdx, setFlashedIdx] = useState(null);
         const flashTimerRef = useRef(null);
         const chordPillRefs = useRef([]);
+        const chordDiagramRefs = useRef([]);
+        const chordScrollRef = useRef(null);
 
         const transposedChords = useMemo(() => {
           return progression.chords.map((roman) => {
@@ -3810,14 +3812,33 @@ const DOMINANT_PROGRESSIONS = [
           };
         }, []);
 
-        // Auto-scroll the active chord pill into view when it changes during loop playback
+        // Auto-scroll active chord pill (vertical) and diagram (horizontal) into view
         useEffect(() => {
           if (!isPlaying || activeChordIdx < 0) return;
-          const el = chordPillRefs.current[activeChordIdx];
-          if (el) {
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+
+          // Vertical: scroll the pill into the page viewport
+          const pill = chordPillRefs.current[activeChordIdx];
+          if (pill) {
+            pill.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
           }
-        }, [isPlaying, activeChordIdx]);
+
+          // Horizontal: manually scroll the overflow-x container so the active
+          // diagram is visible. scrollIntoView is unreliable for inner horizontal
+          // scroll containers on mobile Safari — directly setting scrollLeft works.
+          if (!showChords) return;
+          const container = chordScrollRef.current;
+          const diag = chordDiagramRefs.current[activeChordIdx];
+          if (!container || !diag) return;
+          const diagLeft = diag.offsetLeft;
+          const diagRight = diagLeft + diag.offsetWidth;
+          const viewLeft = container.scrollLeft;
+          const viewRight = viewLeft + container.clientWidth;
+          if (diagLeft < viewLeft + 8) {
+            container.scrollTo({ left: diagLeft - 8, behavior: 'smooth' });
+          } else if (diagRight > viewRight - 8) {
+            container.scrollTo({ left: diagRight - container.clientWidth + 8, behavior: 'smooth' });
+          }
+        }, [isPlaying, activeChordIdx, showChords]);
 
         const handlePillClick = (chordObj, idx) => {
           onPlaySingleChord(chordObj.voicing.midiNotes);
@@ -3974,14 +3995,16 @@ const DOMINANT_PROGRESSIONS = [
                         Guitar Voicings (Tap diagram to audition)
                       </span>
                     </div>
-                    <div className="flex gap-2.5 overflow-x-auto pb-2 thin-scrollbar">
+                    <div ref={chordScrollRef} className="flex gap-2.5 overflow-x-auto pb-2 thin-scrollbar">
                       {transposedChords.map((chordObj, idx) => (
-                        <ChordDiagram
-                          key={`diag-${idx}-${chordObj.name}`}
-                          chord={chordObj}
-                          isActive={isPlaying && activeChordIdx === idx}
-                          onPlay={onPlaySingleChord}
-                        />
+                        <div key={`diag-wrap-${idx}-${chordObj.name}`} ref={(el) => { chordDiagramRefs.current[idx] = el; }}>
+                          <ChordDiagram
+                            key={`diag-${idx}-${chordObj.name}`}
+                            chord={chordObj}
+                            isActive={isPlaying && activeChordIdx === idx}
+                            onPlay={onPlaySingleChord}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>
