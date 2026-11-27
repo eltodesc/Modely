@@ -1,0 +1,3001 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modaly — Modal &amp; Dominant Harmony Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+              mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+            },
+          },
+        },
+      };
+    </script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      html {
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        background-color: #09090b;
+        color: #f4f4f5;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .thin-scrollbar::-webkit-scrollbar {
+        height: 5px;
+      }
+      .thin-scrollbar::-webkit-scrollbar-track {
+        background: #18181b;
+        border-radius: 9999px;
+      }
+      .thin-scrollbar::-webkit-scrollbar-thumb {
+        background: #3f3f46;
+        border-radius: 9999px;
+      }
+      .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #52525b;
+      }
+      input[type='range'].amber-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #27272a;
+        height: 6px;
+        border-radius: 9999px;
+        outline: none;
+      }
+      input[type='range'].amber-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: #f59e0b;
+        cursor: pointer;
+        border: 2px solid #18181b;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+      }
+      input[type='range'].amber-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: #f59e0b;
+        cursor: pointer;
+        border: 2px solid #18181b;
+      }
+    </style>
+  </head>
+  <body class="bg-zinc-950 text-zinc-100 antialiased selection:bg-amber-500/30 selection:text-amber-200 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+      // =========================================================================
+      // 1. MUSIC THEORY & TRANSPOSITION ENGINE
+      // =========================================================================
+      const KEYS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+const KEY_INFO = {
+  C:  { pitch: 0,  letter: 0, preferFlats: false },
+  Db: { pitch: 1,  letter: 1, preferFlats: true },
+  D:  { pitch: 2,  letter: 1, preferFlats: false },
+  Eb: { pitch: 3,  letter: 2, preferFlats: true },
+  E:  { pitch: 4,  letter: 2, preferFlats: false },
+  F:  { pitch: 5,  letter: 3, preferFlats: true },
+  'F#': { pitch: 6, letter: 3, preferFlats: false },
+  G:  { pitch: 7,  letter: 4, preferFlats: false },
+  Ab: { pitch: 8,  letter: 5, preferFlats: true },
+  A:  { pitch: 9,  letter: 5, preferFlats: false },
+  Bb: { pitch: 10, letter: 6, preferFlats: true },
+  B:  { pitch: 11, letter: 6, preferFlats: false },
+};
+
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const NATURAL_PITCHES = [0, 2, 4, 5, 7, 9, 11];
+const MAJOR_SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+
+const SHARP_CHROMATIC = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_CHROMATIC = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+const NOTE_TO_PITCH = {
+  C: 0, 'B#': 0, Dbb: 0,
+  'C#': 1, Db: 1, 'B##': 1,
+  D: 2, 'C##': 2, Ebb: 2,
+  'D#': 3, Eb: 3, Fbb: 3,
+  E: 4, Fb: 4, 'D##': 4,
+  F: 5, 'E#': 5, Gbb: 5,
+  'F#': 6, Gb: 6, 'E##': 6,
+  G: 7, 'F##': 7, Abb: 7,
+  'G#': 8, Ab: 8,
+  A: 9, 'G##': 9, Bbb: 9,
+  'A#': 10, Bb: 10, Cbb: 10,
+  B: 11, Cb: 11, 'A##': 11,
+};
+
+const ROMAN_DEGREE_MAP = {
+  i: 1,
+  ii: 2,
+  iii: 3,
+  iv: 4,
+  v: 5,
+  vi: 6,
+  vii: 7,
+};
+
+/**
+ * Parse a Roman numeral chord token like "bIIImaj7", "#iv°7", "V7#9", "iiø7", "I7sus4".
+ */
+function parseRomanNumeral(roman) {
+  const match = roman.match(/^(bb|b|##|#|♮)?(VII|VI|IV|V|III|II|I|vii|vi|iv|v|iii|ii|i)(.*)$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, accidentalStr = '', numeral, rawSuffix = ''] = match;
+  let accidentalOffset = 0;
+  if (accidentalStr === 'b') accidentalOffset = -1;
+  else if (accidentalStr === 'bb') accidentalOffset = -2;
+  else if (accidentalStr === '#') accidentalOffset = 1;
+  else if (accidentalStr === '##') accidentalOffset = 2;
+
+  const isLower = numeral === numeral.toLowerCase();
+  const degree = ROMAN_DEGREE_MAP[numeral.toLowerCase()];
+
+  // Determine canonical chord quality suffix
+  let quality = rawSuffix;
+  if (isLower) {
+    if (rawSuffix === '') {
+      quality = 'm';
+    } else if (rawSuffix === '°' || rawSuffix === 'dim') {
+      quality = 'dim';
+    } else if (rawSuffix === '°7' || rawSuffix === 'dim7') {
+      quality = 'dim7';
+    } else if (rawSuffix === 'ø' || rawSuffix === 'ø7' || rawSuffix === 'm7b5') {
+      quality = 'm7b5';
+    } else if (rawSuffix.startsWith('sus')) {
+      quality = rawSuffix;
+    } else if (rawSuffix === 'b5') {
+      quality = 'mb5';
+    } else if (rawSuffix.startsWith('m')) {
+      quality = rawSuffix;
+    } else {
+      quality = 'm' + rawSuffix;
+    }
+  } else {
+    if (rawSuffix === '+') {
+      quality = 'aug';
+    } else if (rawSuffix === '°') {
+      quality = 'dim';
+    } else if (rawSuffix === '°7') {
+      quality = 'dim7';
+    } else if (rawSuffix === 'ø7') {
+      quality = 'm7b5';
+    }
+  }
+
+  return {
+    degree,
+    accidentalOffset,
+    isLower,
+    quality,
+    roman,
+  };
+}
+
+/**
+ * Compute enharmonically spelled root note for a given key, scale degree (1..7), and accidental offset.
+ */
+function transposeDegreeToNote(key, degree, accidentalOffset) {
+  const info = KEY_INFO[key] || KEY_INFO.C;
+  const targetPitch =
+    (info.pitch + MAJOR_SCALE_SEMITONES[degree - 1] + accidentalOffset + 24) % 12;
+  const targetLetterIdx = (info.letter + degree - 1) % 7;
+  const naturalPitch = NATURAL_PITCHES[targetLetterIdx];
+  const diff = ((targetPitch - naturalPitch + 18) % 12) - 6;
+
+  // Keep single sharps/flats and naturals for proper diatonic/modal spelling;
+  // simplify double-sharps/double-flats to readable enharmonics matching key polarity.
+  if (diff === 0) return LETTERS[targetLetterIdx];
+  if (diff === 1) return `${LETTERS[targetLetterIdx]}#`;
+  if (diff === -1) return `${LETTERS[targetLetterIdx]}b`;
+
+  const useFlats = key === 'C' ? accidentalOffset < 0 : info.preferFlats;
+  return useFlats ? FLAT_CHROMATIC[targetPitch] : SHARP_CHROMATIC[targetPitch];
+}
+
+/**
+ * Transpose a Roman numeral chord symbol into an actual chord object in the selected key.
+ */
+function transposeRomanChord(roman, key) {
+  const parsed = parseRomanNumeral(roman);
+  if (!parsed) {
+    return {
+      roman,
+      root: key,
+      quality: '',
+      name: `${key}`,
+      pitch: NOTE_TO_PITCH[key] ?? 0,
+    };
+  }
+
+  const root = transposeDegreeToNote(key, parsed.degree, parsed.accidentalOffset);
+  const name = `${root}${parsed.quality}`;
+  const pitch = NOTE_TO_PITCH[root] ?? 0;
+
+  return {
+    roman,
+    root,
+    quality: parsed.quality,
+    name,
+    pitch,
+  };
+}
+
+/**
+ * Format a mode name with the active key prefix, e.g. "C Dorian".
+ */
+function formatModeTitle(key, modeName) {
+  return `${key} ${modeName}`;
+}
+
+      // =========================================================================
+      // 2. GUITAR CHORD VOICING ENGINE
+      // =========================================================================
+      // Standard tuning MIDI pitches from 6th string (low E) to 1st string (high e)
+const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64];
+
+// Specific open chord voicings (only used when root matches open string pitch)
+const OPEN_VOICINGS = {
+  'C:': [-1, 3, 2, 0, 1, 0],
+  'C:maj7': [-1, 3, 2, 0, 0, 0],
+  'C:7': [-1, 3, 2, 3, 1, 0],
+  'C:add9': [-1, 3, 2, 0, 3, 0],
+  'C:sus2': [-1, 3, 0, 0, 1, -1],
+  'D:': [-1, -1, 0, 2, 3, 2],
+  'D:m': [-1, -1, 0, 2, 3, 1],
+  'D:7': [-1, -1, 0, 2, 1, 2],
+  'D:maj7': [-1, -1, 0, 2, 2, 2],
+  'D:m7': [-1, -1, 0, 2, 1, 1],
+  'D:m7b5': [-1, -1, 0, 1, 1, 1],
+  'D:sus4': [-1, -1, 0, 2, 3, 3],
+  'D:sus2': [-1, -1, 0, 2, 3, 0],
+  'D:7sus4': [-1, -1, 0, 2, 1, 3],
+  'E:': [0, 2, 2, 1, 0, 0],
+  'E:m': [0, 2, 2, 0, 0, 0],
+  'E:7': [0, 2, 0, 1, 0, 0],
+  'E:maj7': [0, 2, 1, 1, 0, 0],
+  'E:m7': [0, 2, 0, 0, 0, 0],
+  'E:m7b5': [0, 1, 0, 0, 3, 0],
+  'E:9': [0, 2, 0, 1, 0, 2],
+  'E:13': [0, 2, 0, 1, 2, 0],
+  'E:7#9': [0, 2, 0, 1, 0, 3],
+  'E:7b9': [0, 2, 0, 1, 0, 1],
+  'E:sus4': [0, 2, 2, 2, 0, 0],
+  'E:7sus4': [0, 2, 0, 2, 0, 0],
+  'E:mMaj7': [0, 2, 1, 0, 0, 0],
+  'E:6': [0, 2, 2, 1, 2, 0],
+  'E:m6': [0, 2, 2, 0, 2, 0],
+  'G:': [3, 2, 0, 0, 0, 3],
+  'G:7': [3, 2, 0, 0, 0, 1],
+  'G:maj7': [3, 2, 0, 0, 0, 2],
+  'G:6': [3, 2, 0, 0, 0, 0],
+  'A:': [-1, 0, 2, 2, 2, 0],
+  'A:m': [-1, 0, 2, 2, 1, 0],
+  'A:7': [-1, 0, 2, 0, 2, 0],
+  'A:maj7': [-1, 0, 2, 1, 2, 0],
+  'A:m7': [-1, 0, 2, 0, 1, 0],
+  'A:m7b5': [-1, 0, 1, 0, 1, -1],
+  'A:sus4': [-1, 0, 2, 2, 3, 0],
+  'A:sus2': [-1, 0, 2, 2, 0, 0],
+  'A:7sus4': [-1, 0, 2, 0, 3, 0],
+  'A:mMaj7': [-1, 0, 2, 1, 1, 0],
+  'A:m6': [-1, 0, 2, 2, 1, 2],
+  'A:6': [-1, 0, 2, 2, 2, 2],
+};
+
+const PITCH_TO_NATURAL_OPEN_KEY = {
+  0: 'C',
+  2: 'D',
+  4: 'E',
+  7: 'G',
+  9: 'A',
+};
+
+/**
+ * Movable template definitions.
+ * `null` = muted string; numbers = fret offset relative to root fret `r` on `basePitch` string.
+ */
+const MOVABLE_TEMPLATES = {
+  '': [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, 1, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 2, 0] },
+  ],
+  m: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, 0, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 1, 0] },
+  ],
+  7: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 0, 1, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 0, 2, 0] },
+  ],
+  maj7: [
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 1, 2, 0] },
+    { basePitch: 4, minR: 1, offsets: [0, null, 1, 1, 0, null] },
+  ],
+  m7: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 0, 0, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 0, 1, 0] },
+  ],
+  m7b5: [
+    { basePitch: 9, minR: 1, offsets: [null, 0, 1, 0, 1, null] },
+    { basePitch: 4, minR: 2, offsets: [0, null, 0, 0, -1, null] },
+  ],
+  dim: [
+    { basePitch: 9, minR: 0, offsets: [null, 0, 1, 2, 1, null] },
+    { basePitch: 4, minR: 1, offsets: [0, 1, 2, 0, null, null] },
+  ],
+  dim7: [
+    { basePitch: 2, minR: 0, offsets: [null, null, 0, 1, 0, 1] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 1, -1, 1, null] },
+  ],
+  aug: [
+    { basePitch: 4, minR: 0, offsets: [0, 3, 2, 1, 1, null] },
+    { basePitch: 2, minR: 0, offsets: [null, null, 0, 3, 3, 2] },
+  ],
+  'maj7#5': [
+    { basePitch: 4, minR: 0, offsets: [0, null, 1, 1, 1, null] },
+    { basePitch: 9, minR: 0, offsets: [null, 0, 3, 1, 2, null] },
+  ],
+  mMaj7: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 1, 0, 0, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 1, 1, 0] },
+  ],
+  'm(maj7)': [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 1, 0, 0, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 1, 1, 0] },
+  ],
+  9: [
+    { basePitch: 9, minR: 1, offsets: [null, 0, -1, 0, 0, 0] },
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, 0, 2] },
+  ],
+  13: [
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, 2, null] },
+    { basePitch: 9, minR: 2, offsets: [null, 0, -1, 0, 2, 2] },
+  ],
+  '7#9': [
+    { basePitch: 9, minR: 1, offsets: [null, 0, -1, 0, 1, null] },
+    { basePitch: 2, minR: 2, offsets: [null, null, 0, -1, 1, 1] },
+  ],
+  '7b9': [
+    { basePitch: 9, minR: 1, offsets: [null, 0, -1, 0, -1, null] },
+    { basePitch: 4, minR: 2, offsets: [0, -1, 0, -2, null, null] },
+  ],
+  '7alt': [
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, 1, null] },
+  ],
+  '7#5': [
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, 1, null] },
+  ],
+  '7b5': [
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, -1, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 1, 0, 2, null] },
+  ],
+  '7#11': [
+    { basePitch: 4, minR: 1, offsets: [0, null, 0, 1, -1, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 1, 0, 2, null] },
+  ],
+  'maj7#11': [
+    { basePitch: 4, minR: 2, offsets: [0, null, 1, 1, -1, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 1, 1, 2, null] },
+  ],
+  sus4: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, 2, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 3, 0] },
+  ],
+  '7sus4': [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 0, 2, 0, 0] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 0, 3, 0] },
+  ],
+  sus2: [
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 0, 0] },
+  ],
+  6: [
+    { basePitch: 4, minR: 2, offsets: [0, null, -1, 1, 0, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 2, 2] },
+  ],
+  m6: [
+    { basePitch: 4, minR: 2, offsets: [0, null, -1, 0, 0, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, 1, 2] },
+  ],
+  m9: [
+    { basePitch: 9, minR: 2, offsets: [null, 0, -2, 0, 0, null] },
+    { basePitch: 4, minR: 1, offsets: [0, 2, 0, 0, 0, 2] },
+  ],
+  add9: [
+    { basePitch: 9, minR: 1, offsets: [null, 0, -1, 2, 0, null] },
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, 1, 0, 2] },
+  ],
+  madd9: [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, 0, 0, 2] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 4, 1, null] },
+  ],
+  mb5: [
+    { basePitch: 9, minR: 0, offsets: [null, 0, 1, 2, null, null] },
+  ],
+  '5': [
+    { basePitch: 4, minR: 1, offsets: [0, 2, 2, null, null, null] },
+    { basePitch: 9, minR: 1, offsets: [null, 0, 2, 2, null, null] },
+  ],
+};
+
+const QUALITY_ALIASES = {
+  '°': 'dim',
+  '°7': 'dim7',
+  'ø7': 'm7b5',
+  '+': 'aug',
+  'm(add9)': 'madd9',
+  '7b13': '7alt',
+  '7#5': '7alt',
+  '9#11': '7#11',
+  '13#11': '7#11',
+  'm11': 'm7',
+  'maj9': 'maj7',
+  '6/9': '6',
+};
+
+function normalizeQuality(quality) {
+  if (MOVABLE_TEMPLATES[quality] !== undefined) return quality;
+  if (QUALITY_ALIASES[quality] !== undefined) return QUALITY_ALIASES[quality];
+  if (quality.includes('m7b5') || quality.includes('ø')) return 'm7b5';
+  if (quality.includes('dim7')) return 'dim7';
+  if (quality.includes('dim')) return 'dim';
+  if (quality.includes('maj7#5') || quality.includes('maj7+')) return 'maj7#5';
+  if (quality.includes('maj7#11')) return 'maj7#11';
+  if (quality.includes('mMaj7') || quality.includes('m(maj7)')) return 'mMaj7';
+  if (quality.includes('7#9')) return '7#9';
+  if (quality.includes('7b9')) return '7b9';
+  if (quality.includes('7alt')) return '7alt';
+  if (quality.includes('7#11')) return '7#11';
+  if (quality.includes('7b5')) return '7b5';
+  if (quality.includes('7sus4')) return '7sus4';
+  if (quality.includes('sus4')) return 'sus4';
+  if (quality.includes('sus2')) return 'sus2';
+  if (quality.includes('13')) return '13';
+  if (quality.includes('m9')) return 'm9';
+  if (quality.includes('9')) return '9';
+  if (quality.includes('maj7')) return 'maj7';
+  if (quality.includes('m7')) return 'm7';
+  if (quality.includes('m6')) return 'm6';
+  if (quality.includes('6')) return '6';
+  if (quality.includes('aug')) return 'aug';
+  if (quality.includes('7')) return '7';
+  if (quality.startsWith('m')) return 'm';
+  return '';
+}
+
+function getChordVoicing(rootNote, rawQuality) {
+  const pitch = NOTE_TO_PITCH[rootNote] ?? 0;
+  const quality = normalizeQuality(rawQuality || '');
+
+  const naturalKey = PITCH_TO_NATURAL_OPEN_KEY[pitch];
+  let frets = null;
+
+  if (naturalKey && OPEN_VOICINGS[`${naturalKey}:${quality}`]) {
+    frets = OPEN_VOICINGS[`${naturalKey}:${quality}`];
+  } else {
+    const candidates = MOVABLE_TEMPLATES[quality] || MOVABLE_TEMPLATES[''];
+    let bestCandidate = null;
+    let bestMaxFret = 99;
+
+    for (const tmpl of candidates) {
+      let r = (pitch - tmpl.basePitch + 12) % 12;
+      if (r < tmpl.minR) r += 12;
+
+      const shape = tmpl.offsets.map((off) => (off === null ? -1 : r + off));
+      if (shape.some((f) => f < -1)) continue;
+
+      const fretted = shape.filter((f) => f > 0);
+      const maxFret = fretted.length ? Math.max(...fretted) : 0;
+      const minFret = fretted.length ? Math.min(...fretted) : 0;
+      const hasOpen = shape.some((f) => f === 0);
+
+      if (hasOpen && maxFret > 4) continue;
+      if (fretted.length && maxFret - minFret > 3) continue;
+
+      if (maxFret < bestMaxFret) {
+        bestMaxFret = maxFret;
+        bestCandidate = shape;
+      }
+    }
+
+    if (!bestCandidate) {
+      const fallbackTmpl = quality.startsWith('m')
+        ? MOVABLE_TEMPLATES.m[0]
+        : quality.includes('7')
+        ? MOVABLE_TEMPLATES['7'][0]
+        : MOVABLE_TEMPLATES[''][0];
+      let r = (pitch - fallbackTmpl.basePitch + 12) % 12;
+      if (r < fallbackTmpl.minR) r += 12;
+      bestCandidate = fallbackTmpl.offsets.map((off) => (off === null ? -1 : r + off));
+    }
+
+    frets = bestCandidate;
+  }
+
+  const fretted = frets.filter((f) => f > 0);
+  const maxFret = fretted.length ? Math.max(...fretted) : 0;
+  const minFret = fretted.length ? Math.min(...fretted) : 1;
+  const baseFret = maxFret <= 4 ? 1 : minFret;
+
+  const midiNotes = [];
+  frets.forEach((fret, stringIdx) => {
+    if (fret >= 0) {
+      midiNotes.push(OPEN_STRING_MIDI[stringIdx] + fret);
+    }
+  });
+
+  return {
+    frets,
+    baseFret,
+    midiNotes,
+    name: `${rootNote}${rawQuality}`,
+  };
+}
+
+      // =========================================================================
+      // 3. WEB AUDIO API GUITAR SYNTHESIZER
+      // =========================================================================
+      // Web Audio API Guitar Synthesizer
+// Triangle + detuned sawtooth oscillators routed through a lowpass filter with envelope decay.
+
+class GuitarAudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.masterGain = null;
+    this.activeTimers = [];
+    this.activeNodes = new Set();
+  }
+
+  ensureContext() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.setValueAtTime(0.42, this.ctx.currentTime);
+      this.masterGain.connect(this.ctx.destination);
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    return this.ctx;
+  }
+
+  midiToFreq(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  playStringNote(midi, startTime, duration = 1.45) {
+    const ctx = this.ensureContext();
+    const freq = this.midiToFreq(midi);
+
+    // Triangle oscillator (warm fundamental)
+    const triOsc = ctx.createOscillator();
+    triOsc.type = 'triangle';
+    triOsc.frequency.setValueAtTime(freq, startTime);
+
+    // Detuned sawtooth oscillator (string harmonic bite & chorus warmth)
+    const sawOsc = ctx.createOscillator();
+    sawOsc.type = 'sawtooth';
+    sawOsc.frequency.setValueAtTime(freq, startTime);
+    sawOsc.detune.setValueAtTime(6.5, startTime);
+
+    const triGain = ctx.createGain();
+    triGain.gain.setValueAtTime(0.68, startTime);
+
+    const sawGain = ctx.createGain();
+    sawGain.gain.setValueAtTime(0.28, startTime);
+
+    // Lowpass filter with pluck brightness envelope
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(1.4, startTime);
+    const startCutoff = Math.min(3400, freq * 7.5);
+    const endCutoff = Math.max(420, freq * 2.1);
+    filter.frequency.setValueAtTime(startCutoff, startTime);
+    filter.frequency.exponentialRampToValueAtTime(endCutoff, startTime + duration * 0.75);
+
+    // Amplitude ADSR-like pluck decay
+    const noteGain = ctx.createGain();
+    noteGain.gain.setValueAtTime(0.0001, startTime);
+    noteGain.gain.linearRampToValueAtTime(0.26, startTime + 0.01);
+    noteGain.gain.exponentialRampToValueAtTime(0.0008, startTime + duration);
+
+    triOsc.connect(triGain);
+    sawOsc.connect(sawGain);
+    triGain.connect(filter);
+    sawGain.connect(filter);
+    filter.connect(noteGain);
+    noteGain.connect(this.masterGain);
+
+    triOsc.start(startTime);
+    sawOsc.start(startTime);
+    const stopTime = startTime + duration + 0.05;
+    triOsc.stop(stopTime);
+    sawOsc.stop(stopTime);
+
+    const entry = { triOsc, sawOsc, noteGain };
+    this.activeNodes.add(entry);
+    triOsc.onended = () => {
+      this.activeNodes.delete(entry);
+    };
+  }
+
+  /**
+   * Play a chord's MIDI notes using Strum (35ms) or Arpeggio (140ms) offset.
+   */
+  playChord(midiNotes, mode = 'strum', beatDurationSec = 1.3) {
+    if (!midiNotes || midiNotes.length === 0) return;
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime + 0.015;
+    const offsetSec = mode === 'arpeggio' ? 0.14 : 0.035;
+    const noteDuration = Math.max(1.1, beatDurationSec * 1.15);
+
+    midiNotes.forEach((midi, idx) => {
+      const noteStart = now + idx * offsetSec;
+      this.playStringNote(midi, noteStart, noteDuration);
+    });
+  }
+
+  stopAllNotes() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (const entry of this.activeNodes) {
+      try {
+        entry.noteGain.gain.cancelScheduledValues(now);
+        entry.noteGain.gain.setTargetAtTime(0.0001, now, 0.02);
+        entry.triOsc.stop(now + 0.08);
+        entry.sawOsc.stop(now + 0.08);
+      } catch {
+        // Already stopped
+      }
+    }
+    this.activeNodes.clear();
+  }
+}
+
+const audioEngine = new GuitarAudioEngine();
+
+      // =========================================================================
+      // 4. MODAL LIBRARY & DOMINANT 7TH DATA
+      // =========================================================================
+      const SCALE_GROUPS_PART_1 = [
+  {
+    id: 'major',
+    name: 'Major',
+    modes: [
+      {
+        number: 1,
+        name: 'Ionian',
+        formula: '1 - 2 - 3 - 4 - 5 - 6 - 7',
+        vibe: 'Bright, resolved, and uplifting—the foundational major sound of Western pop, folk, and diatonic melody.',
+        progressions: [
+          {
+            title: 'Classic Diatonic Uplift',
+            song: 'Let It Be – The Beatles',
+            chords: ['I', 'V', 'vi', 'IV'],
+            description: 'The iconic four-chord axis balancing bright tonic resolution with bittersweet relative minor color.',
+          },
+          {
+            title: 'Lively Major Cadence',
+            song: 'Brown Eyed Girl – Van Morrison',
+            chords: ['I', 'IV', 'I', 'V'],
+            description: 'Open, joyful Ionian movement highlighting the pure major triad pull between IV and V.',
+          },
+          {
+            title: 'Lush Maj7 Ballad',
+            song: 'Something – The Beatles',
+            chords: ['Imaj7', 'IVmaj7', 'ii7', 'V7'],
+            description: 'Smooth seventh-chord voice leading that showcases Ionian’s warm major 7th sparkle.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Dorian',
+        formula: '1 - 2 - b3 - 4 - 5 - 6 - b7',
+        vibe: 'Soulful, groovy minor with a bright natural 6th—the quintessential minor sound of funk, Santana rock, and modal jazz.',
+        progressions: [
+          {
+            title: 'Classic Dorian Jam Vamp',
+            song: 'Oye Como Va – Santana',
+            chords: ['i7', 'IV7', 'i7', 'IV7'],
+            description: 'The signature Dorian signature move: minor i7 paired with a bright major IV7 containing the natural 6th.',
+          },
+          {
+            title: 'Modal Jazz Two-Chord Drift',
+            song: 'So What – Miles Davis',
+            chords: ['i7', 'i7', 'bIIImaj7', 'ii7'],
+            description: 'Spacious minor 7th groove hovering effortlessly without traditional dominant tension.',
+          },
+          {
+            title: 'Funky Dorian Drive',
+            song: 'Another Brick in the Wall – Pink Floyd',
+            chords: ['i', 'IV', 'bIII', 'IV'],
+            description: 'Driving minor-key rock progression lifted by the characteristic major IV chord.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Phrygian',
+        formula: '1 - b2 - b3 - 4 - 5 - b6 - b7',
+        vibe: 'Dark, Spanish/flamenco, and brooding—defined by the hypnotic half-step tension between b2 and the root.',
+        progressions: [
+          {
+            title: 'Flamenco bII Cadence',
+            song: 'White Rabbit – Jefferson Airplane',
+            chords: ['i', 'bII', 'i', 'bII'],
+            description: 'Instant Phrygian drama built strictly on the half-step shift between minor tonic and major bII.',
+          },
+          {
+            title: 'Andalusian Metal Riffage',
+            song: 'Symphony of Destruction – Megadeth',
+            chords: ['i', 'bII', 'bVII', 'i'],
+            description: 'Heavy dark tension weaving between bVII and the signature bII Phrygian turn.',
+          },
+          {
+            title: 'Desert Modal Drift',
+            song: 'Pyramid Song – Radiohead',
+            chords: ['i7', 'bIImaj7', 'bIII7', 'bIImaj7'],
+            description: 'Dreamy, mysterious Phrygian colors anchored by lush bIImaj7 voicings.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Lydian',
+        formula: '1 - 2 - 3 - #4 - 5 - 6 - 7',
+        vibe: 'Dreamy, cinematic, and weightless—the raised #4 creates a floating, sci-fi wonder.',
+        progressions: [
+          {
+            title: 'Signature I – II Lydian Float',
+            song: 'Flying in a Blue Dream – Joe Satriani',
+            chords: ['Imaj7', 'II', 'Imaj7', 'II'],
+            description: 'The major II triad introduces the bright #4 over a stationary tonic feel.',
+          },
+          {
+            title: 'Cinematic Wonder Cadence',
+            song: 'Dreams – Fleetwood Mac',
+            chords: ['Imaj7', 'II7', 'vii', 'Imaj7'],
+            description: 'Sweeping, luminous major harmony that avoids grounded IV-chord gravity.',
+          },
+          {
+            title: 'Film Score Lift',
+            song: 'E.T. Main Theme – John Williams',
+            chords: ['I', 'II', 'vii7', 'Imaj7'],
+            description: 'Soaring melodic lift fueled by the tritone-away #4 degree.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Mixolydian',
+        formula: '1 - 2 - 3 - 4 - 5 - 6 - b7',
+        vibe: 'Upbeat, bluesy, and anthemic—the major triad meets the swaggering b7 of classic rock and jam bands.',
+        progressions: [
+          {
+            title: 'Classic Rock bVII – IV – I',
+            song: 'Sweet Child O’ Mine – Guns N’ Roses',
+            chords: ['I', 'bVII', 'IV', 'I'],
+            description: 'The ultimate Mixolydian anthem progression rolling downward from bVII through IV back home.',
+          },
+          {
+            title: 'Modal Groove Vamp',
+            song: 'Norwegian Wood – The Beatles',
+            chords: ['I7', 'bVII', 'I7', 'v7'],
+            description: 'Hypnotic major-dominant groove leaning on the minor v7 and bVII.',
+          },
+          {
+            title: 'Jam-Band Dom7 Lift',
+            song: 'Fire on the Mountain – Grateful Dead',
+            chords: ['I7', 'bVIImaj7', 'IV', 'I7'],
+            description: 'Open-ended Mixolydian jam canvas built for sunny, endless soloing.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Aeolian',
+        formula: '1 - 2 - b3 - 4 - 5 - b6 - b7',
+        vibe: 'Melancholic, epic, and emotive—natural minor with the sweeping bVI and bVII rock cadence.',
+        progressions: [
+          {
+            title: 'Epic bVI – bVII – i Cadence',
+            song: 'All Along the Watchtower – Jimi Hendrix',
+            chords: ['i', 'bVII', 'bVI', 'bVII'],
+            description: 'Descending natural minor anthem cycling endlessly between i, bVII, and bVI.',
+          },
+          {
+            title: 'Emotional Minor Ballad',
+            song: 'Losing My Religion – R.E.M.',
+            chords: ['i', 'iv', 'bVI', 'bVII'],
+            description: 'Heartfelt minor-key storytelling moving through iv and bVI before resolving.',
+          },
+          {
+            title: 'Dark Neo-Soul Minor',
+            song: 'Summertime – Modern Minor Groove',
+            chords: ['i7', 'iv7', 'bVImaj7', 'v7'],
+            description: 'Velvety minor sevenths spotlighting the smooth natural v7 without a leading tone.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Locrian',
+        formula: '1 - b2 - b3 - 4 - b5 - b6 - b7',
+        vibe: 'Unsettled, eerie, and dystopian—the diminished tonic (b5) resists full rest.',
+        progressions: [
+          {
+            title: 'Half-Diminished Riff Vamp',
+            song: 'Army of Me – Björk',
+            chords: ['iø7', 'bII', 'iø7', 'bvii7'],
+            description: 'Angular dark groove contrasting the unstable m7b5 tonic with the major bII.',
+          },
+          {
+            title: 'Locrian Tension Cycle',
+            song: 'Dust to Dust – John Kirkpatrick',
+            chords: ['iø7', 'biii7', 'bII', 'iø7'],
+            description: 'Shadowy modal motion highlighting both the b2 and b5 intervals.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'harmonic-minor',
+    name: 'Harmonic Minor',
+    modes: [
+      {
+        number: 1,
+        name: 'Harmonic Minor',
+        formula: '1 - 2 - b3 - 4 - 5 - b6 - 7',
+        vibe: 'Dramatic, classical, and gothic—combines a minor tonic with a fiery major V7 leading-tone pull.',
+        progressions: [
+          {
+            title: 'Classical Minor Cadence',
+            song: 'Smooth – Santana',
+            chords: ['i', 'iv', 'V7', 'i'],
+            description: 'Sharp harmonic pull from minor iv through the V7 leading tone straight back to i.',
+          },
+          {
+            title: 'Neoclassical Shred Cycle',
+            song: 'Far Beyond the Sun – Yngwie Malmsteen',
+            chords: ['i', 'bVI', 'vii°7', 'i'],
+            description: 'Sweeping Baroque tension using the dramatic diminished 7th leading chord.',
+          },
+          {
+            title: 'Lush Minor-Major Mystery',
+            song: 'James Bond Theme – Monty Norman',
+            chords: ['i(maj7)', 'iv7', 'V7', 'i(maj7)'],
+            description: 'Spy-thriller elegance driven by the eerie minor-major 7th tonic.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Locrian ♮6',
+        formula: '1 - b2 - b3 - 4 - b5 - 6 - b7',
+        vibe: 'Crunchy, dark, and jazz-edged—a half-diminished mode brightened unexpectedly by a natural 6th.',
+        progressions: [
+          {
+            title: 'Half-Diminished ♮6 Vamp',
+            song: 'Jazz Minor iiø7 Study',
+            chords: ['iø7', 'IV', 'bII', 'iø7'],
+            description: 'Pairs the unstable half-diminished tonic with a surprising major IV triad from the natural 6th.',
+          },
+          {
+            title: 'Dark Fusion Turn',
+            song: 'Modal Fusion Etude',
+            chords: ['iø7', 'bvii7', 'vi°', 'iø7'],
+            description: 'Twisted chromatic tension balancing b2 and natural 6 over a b5 floor.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Ionian #5',
+        formula: '1 - 2 - 3 - 4 - #5 - 6 - 7',
+        vibe: 'Shimmering, surreal, and romantic—major harmony warped by an augmented #5 lift.',
+        progressions: [
+          {
+            title: 'Augmented Major Float',
+            song: 'Impressionist Film Cue',
+            chords: ['Imaj7#5', 'IV', 'ii7', 'Imaj7#5'],
+            description: 'Dreamlike maj7#5 tonic color dissolving into bright subdominant warmth.',
+          },
+          {
+            title: 'Chromatic Major Lift',
+            song: 'Modern Jazz Ballad',
+            chords: ['I+', 'vi', 'IVmaj7', 'I+'],
+            description: 'Suspended augmented triad movement that feels perpetually suspended in midair.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Dorian #4 (Ukrainian Dorian)',
+        formula: '1 - 2 - b3 - #4 - 5 - 6 - b7',
+        vibe: 'Mysterious, Eastern European, and soulful—Dorian infused with the exotic #4 augmented second.',
+        progressions: [
+          {
+            title: 'Ukrainian Folk Lament',
+            song: 'Klezmer & Balkan Traditional',
+            chords: ['i', 'II7', 'i', 'bVII'],
+            description: 'Soulful minor tonic alternating with a bright dominant II7 built on the #4.',
+          },
+          {
+            title: 'Gypsy Jazz Minor Vamp',
+            song: 'Les Yeux Noirs – Django Reinhardt Style',
+            chords: ['i6', 'II7', 'iv', 'i6'],
+            description: 'Expressive minor 6th tonic dancing against the sparkling II7 tension.',
+          },
+          {
+            title: 'Balkan Modal Groove',
+            song: 'Eastern Modal Jam',
+            chords: ['i7', 'II', 'bIII+', 'i7'],
+            description: 'Exotic melodic hooks built around the augmented bIII+ and major II.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Phrygian Dominant',
+        formula: '1 - b2 - 3 - 4 - 5 - b6 - b7',
+        vibe: 'Fiery, Middle Eastern, and flamenco—the major 3rd against b2 and b6 creates instant desert heat.',
+        progressions: [
+          {
+            title: 'Flamenco Freygish Cadence',
+            song: 'Misirlou – Dick Dale',
+            chords: ['I', 'bII', 'bvii', 'I'],
+            description: 'Iconic surf/flamenco drive snapping between the major tonic and flat-II.',
+          },
+          {
+            title: 'Desert Dominant Vamp',
+            song: 'Wherever I May Roam – Metallica',
+            chords: ['I7', 'bIImaj7', 'iv', 'I7'],
+            description: 'Dramatic harmonic tension uniting dominant I7 with dark minor iv and bIImaj7.',
+          },
+          {
+            title: 'Andalusian Spice Loop',
+            song: 'Hava Nagila – Traditional',
+            chords: ['I', 'bII', 'bIII', 'bII'],
+            description: 'Energetic Phrygian Dominant climb anchored by the b2–3 augmented second.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Lydian #2',
+        formula: '1 - #2 - 3 - #4 - 5 - 6 - 7',
+        vibe: 'Opulent, fantastical, and radiant—Lydian pushed further into exotic territory by #2.',
+        progressions: [
+          {
+            title: 'Exotic Lydian Fantasy',
+            song: 'Prog-Rock Fantasy Motif',
+            chords: ['Imaj7', 'II', '#ii°', 'Imaj7'],
+            description: 'Glistening #4 and #2 colors creating a kaleidoscopic major soundscape.',
+          },
+          {
+            title: 'Maj7 to #II°7 Color Shift',
+            song: 'Modern Fusion Ballad',
+            chords: ['Imaj7', '#ii°7', 'iii', 'II'],
+            description: 'Smooth voice leading passing through the shimmering #ii°7 diminished color.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Super Locrian bb7',
+        formula: '1 - b2 - b3 - b4 - b5 - b6 - bb7',
+        vibe: 'Ultra-tense, symmetrical-feeling diminished gravity—every tone pulls violently toward resolution.',
+        progressions: [
+          {
+            title: 'Diminished 7th Tension Cycle',
+            song: 'Classical Recitative Diminished',
+            chords: ['i°7', 'bII', 'bvi', 'i°7'],
+            description: 'Dark, ominous diminished 7th tonic rubbing against the major bII.',
+          },
+          {
+            title: 'Altered Diminished Resolve',
+            song: 'Jazz Dominant Substitute',
+            chords: ['i°7', 'biii', 'bII7', 'i°7'],
+            description: 'Intense angular motion built for chromatic tension-and-release passages.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'melodic-minor',
+    name: 'Melodic Minor',
+    modes: [
+      {
+        number: 1,
+        name: 'Melodic Minor',
+        formula: '1 - 2 - b3 - 4 - 5 - 6 - 7',
+        vibe: 'Sleek, noir, and sophisticated—jazz minor with a bright 6th and crisp major 7th.',
+        progressions: [
+          {
+            title: 'Noir Minor-Major Tonic',
+            song: 'Solar – Miles Davis',
+            chords: ['i(maj7)', 'ii7', 'IV7', 'i(maj7)'],
+            description: 'Smooth urban jazz flow pairing the glassy m(maj7) tonic with bright IV7.',
+          },
+          {
+            title: 'Jazz Minor ii – V Turn',
+            song: 'Nardis / Minor Jazz Etude',
+            chords: ['i6', 'IV9', 'V7', 'i(maj7)'],
+            description: 'Rich minor 6th and dominant 9th voicings resolving cleanly to i(maj7).',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Dorian b2',
+        formula: '1 - b2 - b3 - 4 - 5 - 6 - b7',
+        vibe: 'Dark yet suspended—Phrygian’s b2 meets Dorian’s natural 6th for a moody sumb9 jazz feel.',
+        progressions: [
+          {
+            title: 'Suspended Phrygian Groove',
+            song: 'Suspended Jazz Vamp',
+            chords: ['i7', 'bIImaj7', 'IV7', 'i7'],
+            description: 'Atmospheric contrast between dark bIImaj7 and bright Dorian-style IV7.',
+          },
+          {
+            title: 'Dorian b2 Sus Vamp',
+            song: 'Modern ECM Jazz',
+            chords: ['i7sus4', 'bII', 'i7', 'bvii7'],
+            description: 'Airy sus4 voicings hovering over the distinctive b2-6 tension.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Lydian Augmented',
+        formula: '1 - 2 - 3 - #4 - #5 - 6 - 7',
+        vibe: 'Futuristic, floating, and shimmering—combines Lydian’s #4 with an ethereal #5.',
+        progressions: [
+          {
+            title: 'Maj7#5 Modern Float',
+            song: 'Holdsworth Fusion Harmony',
+            chords: ['Imaj7#5', 'II7', 'Imaj7#5', 'III7'],
+            description: 'Suspended sci-fi jazz texture propelled by Maj7#5 and bright dominant II7.',
+          },
+          {
+            title: 'Augmented Lydian Drift',
+            song: 'Contemporary Film Cue',
+            chords: ['I+', 'II', '#ivø7', 'Imaj7#5'],
+            description: 'Weightless harmonic color cycling through #4 and #5 upper extensions.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Lydian Dominant',
+        formula: '1 - 2 - 3 - #4 - 5 - 6 - b7',
+        vibe: 'Quirky, bright, and hip—dominant 7th swagger spiced with a sparkling #11.',
+        progressions: [
+          {
+            title: 'The Simpsons Theme Lift',
+            song: 'The Simpsons Theme – Danny Elfman',
+            chords: ['I7#11', 'II', 'I7#11', 'bVII'],
+            description: 'Playful, quirky dominant #11 sound oscillating with a bright major II triad.',
+          },
+          {
+            title: 'Fusion Dom7#11 Vamp',
+            song: 'Take Five / Fusion Jam',
+            chords: ['I9', 'II7', 'I7#11', 'I13'],
+            description: 'Funky jazz-fusion groove highlighting the crisp tritone #4 over a dominant root.',
+          },
+          {
+            title: 'Bluesy Tritone-Sub Color',
+            song: 'Modern Jazz Comping',
+            chords: ['I7#11', 'IVm6', 'I13', 'II7'],
+            description: 'Classic jazz dominant color used on bII7 substitutions and IV7 blues chords.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Mixolydian b6',
+        formula: '1 - 2 - 3 - 4 - 5 - b6 - b7',
+        vibe: 'Bittersweet, noble, and cinematic—a warm major dominant softened by a poignant b6.',
+        progressions: [
+          {
+            title: 'Hindu / Epic Film Cadence',
+            song: 'Heroic Cinematic Score',
+            chords: ['I7', 'iv', 'bVImaj7', 'I7'],
+            description: 'Poignant juxtaposition of a bright major tonic with lush minor iv and bVImaj7.',
+          },
+          {
+            title: 'Bittersweet Dom7 Vamp',
+            song: 'Melancholy Rock Ballad',
+            chords: ['I', 'bVI', 'v7', 'I7'],
+            description: 'Nostalgic harmonic sweep sliding gently through the minor v7 and bVI.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Locrian ♮2',
+        formula: '1 - 2 - b3 - 4 - b5 - b6 - b7',
+        vibe: 'Smooth, soulful half-diminished—replacing b2 with natural 2 makes m7b5 warm and singable.',
+        progressions: [
+          {
+            title: 'Modern Minor iiø7 Vamp',
+            song: 'Stella by Starlight – Jazz Standard',
+            chords: ['iø7', 'iv7', 'bVImaj7', 'iø7'],
+            description: 'Sophisticated half-diminished groove cushioned by warm minor iv7 and bVImaj7.',
+          },
+          {
+            title: 'Aeolian b5 Motion',
+            song: 'Contemporary Neo-Soul',
+            chords: ['iø7', 'ii7', 'bIII+', 'iø7'],
+            description: 'Smooth melodic minor iiø7 voice leading without the harsh Phrygian b2 rub.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Altered Scale',
+        formula: '1 - b2 - b3 - b4 - b5 - b6 - b7',
+        vibe: 'Maximum jazz dominant tension—packs b9, #9, b5, and #5 to resolve explosively.',
+        progressions: [
+          {
+            title: 'Altered Dominant Tension Loop',
+            song: 'Bebop & Fusion V7alt',
+            chords: ['I7alt', 'bII7', 'I7#9', 'I7alt'],
+            description: 'Dense altered dominant harmony loaded with tritone and #9/b13 tensions.',
+          },
+          {
+            title: 'Super Locrian Outside Run',
+            song: 'Modern Jazz Soloist Vamp',
+            chords: ['I7alt', 'bIIm(maj7)', 'bV7', 'I7alt'],
+            description: 'Tense altered voicings built for "outside" chromatic lines that resolve hard.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'harmonic-major',
+    name: 'Harmonic Major',
+    modes: [
+      {
+        number: 1,
+        name: 'Harmonic Major',
+        formula: '1 - 2 - 3 - 4 - 5 - b6 - 7',
+        vibe: 'Majestic yet wistful—a pure major scale transformed by a poignant minor iv (b6).',
+        progressions: [
+          {
+            title: 'Major-to-Minor iv Nostalgia',
+            song: 'In My Life – The Beatles (borrowed iv)',
+            chords: ['Imaj7', 'iv', 'V7', 'Imaj7'],
+            description: 'Heart-tugging major tonic yielding to the deeply nostalgic minor iv chord.',
+          },
+          {
+            title: 'Lush Symphonic Cadence',
+            song: 'Romantic Era Harmony',
+            chords: ['I', 'bVI+', 'iiø7', 'V7'],
+            description: 'Sweeping harmonic richness combining bright I with haunting iiø7 and bVI+.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Dorian b5',
+        formula: '1 - 2 - b3 - 4 - b5 - 6 - b7',
+        vibe: 'Moody, intriguing, and jazz-noir—a half-diminished shell brightened by natural 2 and 6.',
+        progressions: [
+          {
+            title: 'Half-Diminished 6th Groove',
+            song: 'Dark Jazz Ballad',
+            chords: ['iø7', 'IV7', 'bVII', 'iø7'],
+            description: 'Unusual pairing of m7b5 with a bluesy dominant IV7 chord.',
+          },
+          {
+            title: 'Dorian b5 Mystery',
+            song: 'Modal Noir Study',
+            chords: ['iø7', 'bIIImaj7', 'ivm7b5', 'iø7'],
+            description: 'Shadowy tension moving smoothly across flat-five colors.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Phrygian b4',
+        formula: '1 - b2 - b3 - b4 - 5 - b6 - b7',
+        vibe: 'Haunting and ambiguous—blurs minor and major 3rds (b4 = major 3rd) over a Phrygian dark frame.',
+        progressions: [
+          {
+            title: 'Dark Enigmatic Phrygian',
+            song: 'Contemporary Prog Metal',
+            chords: ['i7', 'bIImaj7', 'bVI', 'i7'],
+            description: 'Brooding Phrygian motion accented by the sharp harmonic twist of b4.',
+          },
+          {
+            title: 'Chromatic Minor Tension',
+            song: 'Ambient Film Texture',
+            chords: ['i', 'bIImaj7', 'bvii7', 'i'],
+            description: 'Suspenseful half-step friction between the tonic and bIImaj7.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Lydian b3',
+        formula: '1 - 2 - b3 - #4 - 5 - 6 - 7',
+        vibe: 'Magical, cinematic, and bittersweet—Melodic Minor with a raised #4 sparkle.',
+        progressions: [
+          {
+            title: 'Melodic Minor #4 Mystery',
+            song: 'Danny Elfman Gothic Score',
+            chords: ['i(maj7)', 'II', 'i(maj7)', 'vii°7'],
+            description: 'Whimsical, gothic contrast between minor-major 7th tonic and bright major II.',
+          },
+          {
+            title: 'Cinematic Detective Vamp',
+            song: 'Modern Film Noir',
+            chords: ['i6', 'II7', 'bVIImaj7', 'i(maj7)'],
+            description: 'Velvety minor 6th warmth illuminated by the bright Lydian #4 pull.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Mixolydian b2',
+        formula: '1 - b2 - 3 - 4 - 5 - 6 - b7',
+        vibe: 'Sunny yet exotic—Mixolydian’s natural 6th meets Phrygian Dominant’s spicy b2.',
+        progressions: [
+          {
+            title: 'Exotic Dom7 Groove',
+            song: 'World Fusion Groove',
+            chords: ['I7', 'bII', 'IV7', 'I7'],
+            description: 'Earthy dominant groove combining the spicy bII lift with bluesy IV7.',
+          },
+          {
+            title: 'Sunlit Phrygian Mix',
+            song: 'Mediterranean Jazz',
+            chords: ['I13', 'bII', 'vii°7', 'I13'],
+            description: 'Lush 13th chord voicings framing the sharp b2 half-step turn.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Lydian Augmented #2',
+        formula: '1 - #2 - 3 - #4 - #5 - 6 - 7',
+        vibe: 'Otherworldly, kaleidoscopic, and hyper-bright—loaded with #2, #4, and #5 tensions.',
+        progressions: [
+          {
+            title: 'Kaleidoscopic Maj7#5',
+            song: 'Avant-Garde Jazz Study',
+            chords: ['Imaj7#5', 'II', 'VI7', 'Imaj7#5'],
+            description: 'Iridescent augmented major chords floating above #4 and #2 colors.',
+          },
+          {
+            title: 'Sci-Fi Harmonic Lift',
+            song: 'Ambient Synth Pad',
+            chords: ['I+', 'II7', 'III', 'Imaj7#5'],
+            description: 'Surreal upward harmonic motion that feels completely untethered.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Locrian bb7',
+        formula: '1 - b2 - b3 - 4 - b5 - b6 - bb7',
+        vibe: 'Tight, coiled diminished tension—classic diminished 7th tonic pulled down by b2.',
+        progressions: [
+          {
+            title: 'Coiled Diminished Pull',
+            song: 'Dramatic Classical Transition',
+            chords: ['i°7', 'bIImaj7', 'iv', 'i°7'],
+            description: 'Symmetrical diminished 7th chord sliding against bIImaj7.',
+          },
+          {
+            title: 'Locrian bb7 Tension',
+            song: 'Dark Soundtrack Cue',
+            chords: ['i°7', 'biii', 'bII', 'i°7'],
+            description: 'Compressed, suspenseful voicings suited for thriller atmospheres.',
+          },
+        ],
+      },
+    ],
+  },
+];
+
+      const SCALE_GROUPS_PART_2 = [
+  {
+    id: 'double-harmonic-major',
+    name: 'Double Harmonic Major',
+    modes: [
+      {
+        number: 1,
+        name: 'Double Harmonic Major (Byzantine)',
+        formula: '1 - b2 - 3 - 4 - 5 - b6 - 7',
+        vibe: 'Hypnotic, ancient, and cinematic—two augmented seconds (b2–3 and b6–7) deliver instant Byzantine drama.',
+        progressions: [
+          {
+            title: 'Classic Byzantine Cadence',
+            song: 'Misirlou (Byzantine Core) – Traditional',
+            chords: ['I', 'bII', 'I', 'vii°7'],
+            description: 'Signature half-step snap between major tonic and bII, anchored by a razor-sharp major 7th.',
+          },
+          {
+            title: 'Desert Majesty Vamp',
+            song: 'Eastern Epic Score',
+            chords: ['Imaj7', 'bIImaj7', 'iv', 'Imaj7'],
+            description: 'Dramatic contrast between shimmering Imaj7, exotic bIImaj7, and dark minor iv.',
+          },
+          {
+            title: 'Medallion bII – III+ Turn',
+            song: 'Arabic Maqam Hijaz Kar',
+            chords: ['I', 'bII', 'iii', 'bII'],
+            description: 'Sinous melodic phrasing winding through b2 and b6.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Lydian #2 #6',
+        formula: '1 - #2 - 3 - #4 - 5 - #6 - 7',
+        vibe: 'Exotic, shimmering, and angular—Lydian pushed into dazzling territory with #2 and #6.',
+        progressions: [
+          {
+            title: 'Dazzling Lydian #2',
+            song: 'Prog-Fusion Exploration',
+            chords: ['Imaj7', 'II', 'Imaj7', 'V'],
+            description: 'Luminous #4 shimmer underscored by chromatic #2 and #6 passing tones.',
+          },
+          {
+            title: 'Angular Exotic Lift',
+            song: 'Modern Avant-Score',
+            chords: ['I', '#ii°', 'II7', 'Imaj7'],
+            description: 'Sharp harmonic turns built around the raised #2 diminished color.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Ultraphrygian',
+        formula: '1 - b2 - b3 - b4 - 5 - b6 - bb7',
+        vibe: 'Dark, twisted, and tense—Phrygian compressed even further with b4 and bb7.',
+        progressions: [
+          {
+            title: 'Ultraphrygian Shadow',
+            song: 'Dark Metal Riffing',
+            chords: ['i', 'bIImaj7', 'vi°7', 'i'],
+            description: 'Heavy Phrygian crunch contrasted with the eerie diminished bb7 color.',
+          },
+          {
+            title: 'Compressed Tension Vamp',
+            song: 'Experimental Prog Study',
+            chords: ['i', 'bII', 'bVI', 'i'],
+            description: 'Stark half-step and augmented-second friction over a dark minor center.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Hungarian Minor',
+        formula: '1 - 2 - b3 - #4 - 5 - b6 - 7',
+        vibe: 'Fiery, romantic, and mysterious—Harmonic Minor heightened by a piercing #4.',
+        progressions: [
+          {
+            title: 'Hungarian Gypsy Cadence',
+            song: 'Hungarian Rhapsody Vibe – Liszt',
+            chords: ['i', 'bVI', 'V', 'i'],
+            description: 'Passionate minor progression where #4 spices every melodic run over V and bVI.',
+          },
+          {
+            title: 'Double-Sharp-4 Minor Vamp',
+            song: 'Gothic Metal / Prog',
+            chords: ['i(maj7)', 'II7', 'bVImaj7', 'i(maj7)'],
+            description: 'Dramatic minor-major 7th tonic colliding with a bright II7.',
+          },
+          {
+            title: 'Dark Folk Lament',
+            song: 'Eastern Folk Etude',
+            chords: ['i', '#iv°7', 'V7', 'i'],
+            description: 'Piercing #iv°7 tension driving directly into V7 and minor resolution.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Oriental',
+        formula: '1 - b2 - 3 - 4 - b5 - 6 - b7',
+        vibe: 'Exotic, earthy, and bluesy-Eastern—a b5 dominant feel with Phrygian’s b2.',
+        progressions: [
+          {
+            title: 'Oriental b5 Dominant',
+            song: 'World Fusion Jam',
+            chords: ['I7b5', 'bII', 'IVm', 'I7b5'],
+            description: 'Snappy b5 dominant tension oscillating against the Phrygian bII chord.',
+          },
+          {
+            title: 'Balkan Syncopation',
+            song: 'Odd-Meter Fusion Groove',
+            chords: ['I7', 'bII', 'bvii', 'I7'],
+            description: 'Rhythmic dominant groove highlighting both b2 and natural 6.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Ionian #2 #5',
+        formula: '1 - #2 - 3 - 4 - #5 - 6 - 7',
+        vibe: 'Surreal, dreamy, and ornate—augmented major harmony decorated by a #2 blues-like bend.',
+        progressions: [
+          {
+            title: 'Ornate Augmented Major',
+            song: 'Impressionist Etude',
+            chords: ['Imaj7#5', 'IV', 'vi', 'Imaj7#5'],
+            description: 'Rich maj7#5 color grounded briefly by subdominant IV warmth.',
+          },
+          {
+            title: 'Chromatic Major Drift',
+            song: 'Contemporary Art Song',
+            chords: ['I+', '#ii°', 'IVmaj7', 'I+'],
+            description: 'Floating augmented harmony weaving past the #2 diminished color.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Locrian bb3 bb7',
+        formula: '1 - b2 - bb3 - 4 - b5 - b6 - bb7',
+        vibe: 'Stark, dissonant, and avant-garde—an ultra-rare diminished sound with double-flat gravity.',
+        progressions: [
+          {
+            title: 'Avant-Garde Diminished Pull',
+            song: 'Modernist Chamber Study',
+            chords: ['i°7', 'bII', 'bVI', 'i°7'],
+            description: 'Extreme harmonic tension built around diminished 7th and flat-II friction.',
+          },
+          {
+            title: 'Dissonant Pedal Study',
+            song: 'Horror Score Texture',
+            chords: ['i°', 'bIImaj7', 'iv', 'i°'],
+            description: 'Creeping chromatic motion tailored for suspenseful sound design.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'neapolitan-minor',
+    name: 'Neapolitan Minor',
+    modes: [
+      {
+        number: 1,
+        name: 'Neapolitan Minor',
+        formula: '1 - b2 - b3 - 4 - 5 - b6 - 7',
+        vibe: 'Operatic, tragic, and classical—Phrygian’s dark b2 paired with Harmonic Minor’s fiery major 7th.',
+        progressions: [
+          {
+            title: 'Neapolitan Sixth Cadence',
+            song: 'Moonlight Sonata Spirit – Beethoven',
+            chords: ['i', 'bII', 'V7', 'i'],
+            description: 'The iconic classical tragedy move: bII (Neapolitan) plunging straight into V7 and i.',
+          },
+          {
+            title: 'Tragic Minor-Major Vamp',
+            song: 'Gothic Opera Cue',
+            chords: ['i(maj7)', 'bIImaj7', 'iv', 'i(maj7)'],
+            description: 'Rich, sorrowful atmosphere contrasting dark bIImaj7 with the piercing major 7th.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Lydian #6',
+        formula: '1 - 2 - 3 - #4 - 5 - #6 - 7',
+        vibe: 'Radiant, soaring, and eccentric—Lydian pushed upward by a shimmering #6.',
+        progressions: [
+          {
+            title: 'Soaring Lydian #6',
+            song: 'Modern Prog Interlude',
+            chords: ['Imaj7', 'II', 'iii', 'Imaj7'],
+            description: 'Bright Lydian lift flavored by the unexpected #6 chromatic tension.',
+          },
+          {
+            title: 'Luminous Modal Drift',
+            song: 'Art-Rock Ballad',
+            chords: ['I', 'II7', 'V+', 'I'],
+            description: 'Radiant major harmony gliding across #4 and #6.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Mixolydian Augmented',
+        formula: '1 - 2 - 3 - 4 - #5 - 6 - b7',
+        vibe: 'Swinging, dominant, and restless—a dominant 7#5 texture built for jazz tension.',
+        progressions: [
+          {
+            title: 'Dominant #5 Swing',
+            song: 'Bebop Dominant Study',
+            chords: ['I7alt', 'IV', 'ii7', 'I7alt'],
+            description: 'Punchy dominant #5 tension releasing effortlessly into bright IV.',
+          },
+          {
+            title: 'Augmented Dominant Vamp',
+            song: 'Modern Funk-Jazz',
+            chords: ['I7#5', 'bVII', 'I7#5', 'IV'],
+            description: 'Groovy dominant groove lit up by the raised #5.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Romani Minor',
+        formula: '1 - 2 - b3 - #4 - 5 - b6 - b7',
+        vibe: 'Passionate, wandering, and folkloric—Aeolian darkened by b6 and pierced by #4.',
+        progressions: [
+          {
+            title: 'Romani Campfire Cadence',
+            song: 'Traditional Romani Ballad',
+            chords: ['i', 'II', 'bVI', 'i'],
+            description: 'Evocative minor movement juxtaposing bright II (#4) with sorrowful bVI.',
+          },
+          {
+            title: 'Wandering Minor Vamp',
+            song: 'Acoustic Folk Fusion',
+            chords: ['i7', 'bVImaj7', 'bvii', 'i7'],
+            description: 'Expressive minor groove centered on the poignant #4–b6 tension.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Locrian Dominant',
+        formula: '1 - b2 - 3 - 4 - b5 - b6 - b7',
+        vibe: 'Gritty, Middle Eastern, and unstable—Phrygian Dominant darkened with a Locrian b5.',
+        progressions: [
+          {
+            title: 'Gritty Dominant b5',
+            song: 'Heavy Progressive Riff',
+            chords: ['I7b5', 'bII', 'bvii7', 'I7b5'],
+            description: 'Raw, biting dominant b5 friction snapping against the bII chord.',
+          },
+          {
+            title: 'Desert Metal Turn',
+            song: 'Extreme Metal Modal Study',
+            chords: ['I7b5', 'iv', 'bII', 'I7b5'],
+            description: 'Relentless tension balancing major 3rd, b2, and b5.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Ionian #2',
+        formula: '1 - #2 - 3 - 4 - 5 - 6 - 7',
+        vibe: 'Playful, blues-inflected major—pure Ionian spiked with an expressive #2 blue note.',
+        progressions: [
+          {
+            title: 'Major #2 Lift',
+            song: 'Jazzy Pop Groove',
+            chords: ['Imaj7', 'IV', 'V7', 'Imaj7'],
+            description: 'Warm major chords enlivened by #2 grace-note melodies.',
+          },
+          {
+            title: 'Chromatic Pop Turn',
+            song: 'Modern Fusion Pop',
+            chords: ['I', '#ii°', 'IV', 'V'],
+            description: 'Bright Ionian cadence passing through the spicy #ii° chord.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Ultralocrian bb3',
+        formula: '1 - b2 - bb3 - b4 - b5 - b6 - bb7',
+        vibe: 'Extreme, compressed, and dissonant—an eerie symmetrical-like diminished color.',
+        progressions: [
+          {
+            title: 'Ultralocrian Suspension',
+            song: 'Avant-Garde Soundtrack',
+            chords: ['i°7', 'bII', 'bVI', 'i°7'],
+            description: 'Dense, eerie diminished tension rubbing against bII.',
+          },
+          {
+            title: 'Micro-Tension Cycle',
+            song: 'Contemporary Classical Study',
+            chords: ['i°', 'biii', 'bII7', 'i°'],
+            description: 'Sharp dissonance resolved only by leaving the mode.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'neapolitan-major',
+    name: 'Neapolitan Major',
+    modes: [
+      {
+        number: 1,
+        name: 'Neapolitan Major',
+        formula: '1 - b2 - b3 - 4 - 5 - 6 - 7',
+        vibe: 'Noble, bittersweet, and nocturnal—Melodic Minor darkened only by a poignant Phrygian b2.',
+        progressions: [
+          {
+            title: 'Nocturnal Neapolitan Flow',
+            song: 'Jazz-Classical Nocturne',
+            chords: ['i(maj7)', 'bIImaj7', 'IV7', 'i(maj7)'],
+            description: 'Haunting interplay between the minor-major 7th tonic, lush bIImaj7, and bright IV7.',
+          },
+          {
+            title: 'Phrygian-Jazz Minor Vamp',
+            song: 'Modern Acoustic Jazz',
+            chords: ['i6', 'bII', 'V', 'i6'],
+            description: 'Unexpectedly warm minor 6th tonic framed by the dramatic bII Neapolitan.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Leading Whole Tone',
+        formula: '1 - 2 - 3 - #4 - #5 - #6 - 7',
+        vibe: 'Dreamlike and suspended—a whole-tone scale anchored at the top by a crisp leading tone 7.',
+        progressions: [
+          {
+            title: 'Whole-Tone Leading Float',
+            song: 'Impressionist Jazz Study',
+            chords: ['I+', 'II7', 'III+', 'I+'],
+            description: 'Symmetrical whole-tone shimmer anchored back to tonic via the leading tone.',
+          },
+          {
+            title: 'Debussy-Inspired Drift',
+            song: 'Film Dream Sequence',
+            chords: ['Imaj7#5', 'II', '#ivø7', 'Imaj7#5'],
+            description: 'Weightless chords gliding gently across whole-step intervals.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Lydian Augmented Dominant',
+        formula: '1 - 2 - 3 - #4 - #5 - 6 - b7',
+        vibe: 'Expansive, modern, and electric—Lydian Dominant supercharged with an augmented #5.',
+        progressions: [
+          {
+            title: 'Fusion Dom7#5#11',
+            song: 'Modern Fusion Groove',
+            chords: ['I7alt', 'II7', 'I7#5', 'VI7'],
+            description: 'High-energy jazz-fusion dominant texture packing #4 and #5 brilliance.',
+          },
+          {
+            title: 'Electric Lydian Bounce',
+            song: 'Contemporary Guitar Fusion',
+            chords: ['I9', 'II', 'I7#5', 'I13'],
+            description: 'Bright dominant groove stretching over #4 and #5 color tones.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Lydian Dominant b6',
+        formula: '1 - 2 - 3 - #4 - 5 - b6 - b7',
+        vibe: 'Cinematic, brooding, and mysterious—Lydian Dominant darkened by a haunting b6.',
+        progressions: [
+          {
+            title: 'Shadowed Lydian Dominant',
+            song: 'Modern Sci-Fi Score',
+            chords: ['I7#11', 'bVImaj7', 'II7', 'I7#11'],
+            description: 'Rich contrast between bright #4 dominant color and deep bVImaj7.',
+          },
+          {
+            title: 'Bittersweet Dom7#11',
+            song: 'Jazz-Rock Ballad',
+            chords: ['I7', 'iv', 'II', 'I7'],
+            description: 'Unexpected emotional tug between major II and minor iv.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Major Locrian',
+        formula: '1 - 2 - 3 - 4 - b5 - b6 - b7',
+        vibe: 'Quirky, Arabian-tinted, and edgy—a major triad resting uneasily on a Locrian b5.',
+        progressions: [
+          {
+            title: 'Major-Third Locrian Groove',
+            song: 'Arabic Pop / Fusion',
+            chords: ['I7b5', 'bVII', 'iv', 'I7b5'],
+            description: 'Biting dominant b5 groove rolling through bVII and minor iv.',
+          },
+          {
+            title: 'Edgy b5 Vamp',
+            song: 'Experimental Groove',
+            chords: ['I7b5', 'bVImaj7', 'bvii7', 'I7b5'],
+            description: 'Dark, off-kilter modal groove built around the b5–b6–b7 upper half.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Half-Diminished b4',
+        formula: '1 - 2 - b3 - b4 - b5 - b6 - b7',
+        vibe: 'Complex, dissonant, and jazz-altered—a cousin of the Altered scale with a natural 2.',
+        progressions: [
+          {
+            title: 'Altered Natural-2 Study',
+            song: 'Post-Bop Jazz Comping',
+            chords: ['iø7', 'bVI', 'ii7', 'iø7'],
+            description: 'Slippery, chromatic minor-half-diminished motion for outside soloing.',
+          },
+          {
+            title: 'Dark Enigmatic iiø7',
+            song: 'Modern Jazz Etude',
+            chords: ['iø7', 'bvii7', 'bVImaj7', 'iø7'],
+            description: 'Moody, floating chords showcasing the natural 2 over b5.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Super Locrian bb3',
+        formula: '1 - b2 - bb3 - b4 - b5 - b6 - b7',
+        vibe: 'Sparse, alien, and ultra-chromatic—cluster-like intervals ideal for modern tension.',
+        progressions: [
+          {
+            title: 'Alien Cluster Tension',
+            song: 'Avant-Garde Film Cue',
+            chords: ['i7alt', 'bII', 'bVI', 'i7alt'],
+            description: 'Intense chromatic friction anchored by the half-step b2.',
+          },
+          {
+            title: 'Chromatic Altered Pedal',
+            song: 'Experimental Soundscape',
+            chords: ['iø7', 'bIImaj7', 'bV', 'iø7'],
+            description: 'Suspended dissonance that refuses standard tonal grounding.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'hungarian-major',
+    name: 'Hungarian Major',
+    modes: [
+      {
+        number: 1,
+        name: 'Hungarian Major',
+        formula: '1 - #2 - 3 - #4 - 5 - 6 - b7',
+        vibe: 'Vibrant, folk-infused, and bluesy—Lydian Dominant energized by a fiery #2 blue-note jump.',
+        progressions: [
+          {
+            title: 'Hungarian Dominant Bounce',
+            song: 'Eastern Blues-Jazz Jam',
+            chords: ['I7', 'IV', 'II7', 'I7'],
+            description: 'Lively dominant 7th groove lit up by #2 and #4 melodic inflections.',
+          },
+          {
+            title: 'Folk-Fusion 13th Groove',
+            song: 'Balkan Jazz Vamp',
+            chords: ['I13', '#ii°7', 'II7', 'I13'],
+            description: 'Colorful 13th chords dancing past the #ii°7 diminished color.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Ultralocrian bb6',
+        formula: '1 - b2 - b3 - b4 - b5 - bb6 - bb7',
+        vibe: 'Taut, dramatic, and diminished—compressed intervals pulling hard toward resolution.',
+        progressions: [
+          {
+            title: 'Compressed Diminished Vamp',
+            song: 'Dark Tension Etude',
+            chords: ['i°7', 'bII', 'biii', 'i°7'],
+            description: 'Coiled diminished 7th motion colliding with bII.',
+          },
+          {
+            title: 'Dramatic Transition',
+            song: 'Film Thriller Motif',
+            chords: ['i°7', 'bV', 'bII7', 'i°7'],
+            description: 'Sharp harmonic tension designed for suspense.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Harmonic Minor b5',
+        formula: '1 - 2 - b3 - 4 - b5 - b6 - 7',
+        vibe: 'Eerie, gothic, and tragic—combines a half-diminished b5 floor with a major 7th leading tone.',
+        progressions: [
+          {
+            title: 'Gothic Half-Diminished',
+            song: 'Dark Baroque Study',
+            chords: ['iø7', 'iv', 'V7', 'iø7'],
+            description: 'Haunting minor-b5 center pulled upward by a fiery V7.',
+          },
+          {
+            title: 'Shadowy Classical Cadence',
+            song: 'Horror Nocturne',
+            chords: ['iø7', 'bVImaj7', 'vii°7', 'iø7'],
+            description: 'Dramatic tension cycling between m7b5, bVImaj7, and vii°7.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Super Locrian ♮6',
+        formula: '1 - b2 - b3 - b4 - b5 - 6 - b7',
+        vibe: 'Angular, jazz-altered, and bright-edged—an altered dominant sound warmed by a natural 6th.',
+        progressions: [
+          {
+            title: 'Altered 13th Tension',
+            song: 'Modern Jazz Dominant',
+            chords: ['I7alt', 'VI7', 'bII', 'I7alt'],
+            description: 'Biting altered colors softened by the natural 6th (13th) extension.',
+          },
+          {
+            title: 'Post-Bop Chromatic Turn',
+            song: 'Jazz Fusion Study',
+            chords: ['iø7', 'IV', 'bII7', 'iø7'],
+            description: 'Surprising major IV brightness emerging from a dark Locrian shell.',
+          },
+        ],
+      },
+      {
+        number: 5,
+        name: 'Jazz Minor #5',
+        formula: '1 - 2 - b3 - 4 - #5 - 6 - 7',
+        vibe: 'Mysterious, suspended, and noir—Melodic Minor warped by an eerie augmented #5.',
+        progressions: [
+          {
+            title: 'Minor-Major #5 Mystery',
+            song: 'Modern Noir Score',
+            chords: ['i(maj7)', 'iv', 'bVI+', 'i(maj7)'],
+            description: 'Dark minor-major tonic suspended over an augmented #5 drift.',
+          },
+          {
+            title: 'Suspended Jazz Minor',
+            song: 'Contemporary Ballad',
+            chords: ['i6', 'ii7', 'IV7', 'i(maj7)'],
+            description: 'Smooth voice leading highlighted by the #5 passing color.',
+          },
+        ],
+      },
+      {
+        number: 6,
+        name: 'Dorian b2 #4',
+        formula: '1 - b2 - b3 - #4 - 5 - 6 - b7',
+        vibe: 'Exotic, earthy, and mysterious—blends Phrygian’s b2 with Ukrainian Dorian’s #4.',
+        progressions: [
+          {
+            title: 'Exotic Minor b2 #4',
+            song: 'Mediterranean Modal Jam',
+            chords: ['i7', 'bIImaj7', 'II7', 'i7'],
+            description: 'Striking half-step contrast pitting bIImaj7 against bright II7.',
+          },
+          {
+            title: 'Eastern Dorian Groove',
+            song: 'Acoustic World Fusion',
+            chords: ['i6', 'bII', 'i7', 'II'],
+            description: 'Rich minor 6th groove dancing between b2 and #4.',
+          },
+        ],
+      },
+      {
+        number: 7,
+        name: 'Lydian Augmented #3',
+        formula: '1 - 2 - #3 - #4 - #5 - 6 - 7',
+        vibe: 'Hyper-bright and surreal—an exotic altered tonic centered around a sus4-like #3.',
+        progressions: [
+          {
+            title: 'Surreal Sus4 Shimmer',
+            song: 'Ambient Prog Texture',
+            chords: ['Isus4', 'II', 'V+', 'Isus4'],
+            description: 'Open sus4 tonic floating over raised #4 and #5 extensions.',
+          },
+          {
+            title: 'Floating Augmented Lift',
+            song: 'Modern Art Score',
+            chords: ['Imaj7#5', 'II7', 'Isus4', 'Imaj7#5'],
+            description: 'Airy, unresolved suspension ideal for atmospheric textures.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'symmetrical-scales',
+    name: 'Symmetrical Scales',
+    modes: [
+      {
+        number: 1,
+        name: 'Whole Tone',
+        formula: '1 - 2 - 3 - #4 - #5 - b7',
+        vibe: 'Dreamy, weightless, and ambiguous—six equal whole steps erase any single tonal center.',
+        progressions: [
+          {
+            title: 'Debussy Whole-Tone Float',
+            song: 'Voiles – Claude Debussy / You Are the Sunshine of My Life',
+            chords: ['I+', 'II+', 'III+', 'I+'],
+            description: 'Parallel augmented triads gliding across whole steps with zero harmonic gravity.',
+          },
+          {
+            title: 'Dominant 7#5#11 Drift',
+            song: 'Juju – Wayne Shorter',
+            chords: ['I7#5', 'II7#5', 'bVII7#5', 'I7#5'],
+            description: 'Floating dominant 7#5 voicings shifting smoothly in whole-tone symmetry.',
+          },
+          {
+            title: 'Dream Sequence Arpeggio',
+            song: 'Classic Cinema Dream Cue',
+            chords: ['I7b5', 'II7b5', 'I+', 'I7b5'],
+            description: 'Shimmering whole-tone 7b5 colors ideal for dreamlike transitions.',
+          },
+        ],
+      },
+      {
+        number: 2,
+        name: 'Half-Whole Diminished',
+        formula: '1 - b2 - #2 - 3 - #4 - 5 - 6 - b7',
+        vibe: 'Electric, jagged, and hyper-hip—the jazz soloist’s secret weapon for 13b9 and 7#9 dominant chords.',
+        progressions: [
+          {
+            title: 'Symmetrical 7b9 – 7#9 Vamp',
+            song: 'Herbie Hancock / Chick Corea Fusion',
+            chords: ['I7b9', 'bIII7', 'bV7', 'VI7'],
+            description: 'Minor-third cycle of dominant 7th chords unlocked cleanly by one Half-Whole scale.',
+          },
+          {
+            title: 'Diminished Dom13 Groove',
+            song: 'Modern Jazz-Funk Soloing',
+            chords: ['I13', 'I7#9', 'bIII13', 'I7b9'],
+            description: 'Combines natural 13th warmth with crunchy b9 and #9 upper tensions.',
+          },
+          {
+            title: 'Tritone Mirror Shuffle',
+            song: 'Symmetric Post-Bop',
+            chords: ['I7#11', 'bV7#11', 'I7b9', 'I13'],
+            description: 'Mirror-image dominant chords a tritone apart sharing the exact same octatonic pool.',
+          },
+        ],
+      },
+      {
+        number: 3,
+        name: 'Whole-Half Diminished',
+        formula: '1 - 2 - b3 - 4 - b5 - b6 - 6 - 7',
+        vibe: 'Dramatic, gothic, and symmetrical—built for diminished 7th chords and eerie minor tension.',
+        progressions: [
+          {
+            title: 'Minor-Third Dim7 Climb',
+            song: 'Classical & Jazz Passing Dim7',
+            chords: ['i°7', 'biii°7', 'bv°7', 'vi°7'],
+            description: 'Four inversions of the exact same diminished 7th chord ascending in minor thirds.',
+          },
+          {
+            title: 'Octatonic Minor Suspense',
+            song: 'Bernard Herrmann Thriller Score',
+            chords: ['i(maj7)', 'i°7', 'iv6', 'i°7'],
+            description: 'Creeping cinematic tension weaving between minor-major 7th and diminished 7th.',
+          },
+        ],
+      },
+      {
+        number: 4,
+        name: 'Augmented (Hexatonic)',
+        formula: '1 - #2 - 3 - 5 - #5 - 7',
+        vibe: 'Sleek, sci-fi, and Coltrane-inspired—alternating minor thirds and half steps across three major centers.',
+        progressions: [
+          {
+            title: 'Giant Steps Major-Third Cycle',
+            song: 'Giant Steps – John Coltrane',
+            chords: ['Imaj7', 'III7', 'bVImaj7', 'Imaj7'],
+            description: 'Symmetrical major-third modulation connecting three luminous major-7th worlds.',
+          },
+          {
+            title: 'Hexatonic Augmented Float',
+            song: 'Modern Jazz Etude',
+            chords: ['Imaj7#5', 'bVImaj7#5', 'IIImaj7#5', 'Imaj7#5'],
+            description: 'Maj7#5 chords rotating effortlessly in major thirds over a single hexatonic scale.',
+          },
+        ],
+      },
+    ],
+  },
+];
+
+      const SCALE_GROUPS = [...SCALE_GROUPS_PART_1, ...SCALE_GROUPS_PART_2];
+
+const PRIMARY_GROUP_IDS = ['major', 'harmonic-minor'];
+
+const OTHER_GROUPS = SCALE_GROUPS.filter(
+  (group) => !PRIMARY_GROUP_IDS.includes(group.id)
+);
+
+      const DOMINANT_CATEGORIES = [
+  'All',
+  'Blues & Funk',
+  'Jazz & Turnarounds',
+  'Jam-Band & Rock',
+];
+
+const DOMINANT_PROGRESSIONS = [
+  {
+    id: 'quick-change-blues',
+    category: 'Blues & Funk',
+    title: '12-Bar Quick-Change Blues',
+    song: 'Sweet Home Chicago – Robert Johnson / Blues Brothers',
+    chords: ['I7', 'IV7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
+    description:
+      'Classic 12-bar blues with the immediate bar-2 IV7 lift, returning to I7 before the V7–IV7–I7 turnaround.',
+  },
+  {
+    id: 'funk-soul-vamp',
+    category: 'Blues & Funk',
+    title: 'Funk / Soul I9 – IV9 Vamp',
+    song: 'Play That Funky Music – Wild Cherry / James Brown',
+    chords: ['I9', 'IV9', 'I9', 'IV9'],
+    description:
+      'Punchy two-chord dominant 9th groove built for syncopated 16th-note scratch strums and Dorian/Mixolydian horn lines.',
+  },
+  {
+    id: 'hendrix-funk-7sharp9',
+    category: 'Blues & Funk',
+    title: 'Dominant 7#9 Funk Groove',
+    song: 'Purple Haze / Foxy Lady – Jimi Hendrix',
+    chords: ['I7#9', 'bIII7', 'IV9', 'I7#9'],
+    description:
+      'The unmistakable "Hendrix chord" pairs a major 3rd and minor 3rd (#9) over a dominant shell, moving into bIII7 and IV9.',
+  },
+  {
+    id: 'gospel-dom13-walk',
+    category: 'Blues & Funk',
+    title: 'Soulful Dom13 Chromatic Turnaround',
+    song: 'What’d I Say – Ray Charles',
+    chords: ['I13', 'IV9', '#iv°7', 'I13'],
+    description:
+      'Lush 13th voicings rise to IV9 and pass through the #iv°7 diminished tension chord right back to the tonic.',
+  },
+  {
+    id: 'classic-jazz-ii-v-i',
+    category: 'Jazz & Turnarounds',
+    title: 'Classic Jazz ii7 – V7 – Imaj7',
+    song: 'Autumn Leaves / Satin Doll – Jazz Standard',
+    chords: ['ii7', 'V13', 'Imaj7', 'VI7'],
+    description:
+      'The cornerstone cadence of jazz harmony: ii7 sets up the V13 dominant release into Imaj7, with VI7 cycling back to ii7.',
+  },
+  {
+    id: 'tritone-substitution',
+    category: 'Jazz & Turnarounds',
+    title: 'Tritone Substitution (ii7 – bII7 – Imaj7)',
+    song: 'A Night in Tunisia / Girl from Ipanema – Jazz Standard',
+    chords: ['ii7', 'bII7', 'Imaj7', 'Imaj7'],
+    description:
+      'Replaces V7 with bII7, which shares the exact same 3rd and b7th tritone while creating a smooth chromatic bass descent (2 → b2 → 1).',
+  },
+  {
+    id: 'rhythm-changes-bridge',
+    category: 'Jazz & Turnarounds',
+    title: 'Rhythm Changes Bridge (Cycle of Dominants)',
+    song: 'I Got Rhythm / Oleo – Sonny Rollins',
+    chords: ['III7', 'VI7', 'II7', 'V7'],
+    description:
+      'Four consecutive secondary dominants descending in fifths around the circle, propelling energy directly back to the A-section.',
+  },
+  {
+    id: 'backdoor-dominant',
+    category: 'Jazz & Turnarounds',
+    title: 'Backdoor Dominant (iv7 – bVII9 – Imaj7)',
+    song: 'There Will Never Be Another You / Stella by Starlight',
+    chords: ['iv7', 'bVII9', 'Imaj7', 'Imaj7'],
+    description:
+      'Instead of resolving from V7, bVII9 borrows from Mixolydian/Aeolian and glides up a whole step to Imaj7 for a soulful jazz resolution.',
+  },
+  {
+    id: 'dead-mixolydian-jam',
+    category: 'Jam-Band & Rock',
+    title: 'Grateful Dead Mixolydian Dom7 Jam',
+    song: 'Scarlet Begonias / Franklin’s Tower – Grateful Dead',
+    chords: ['I7', 'bVII', 'IV7', 'I7'],
+    description:
+      'Sun-drenched Mixolydian jam progression driven by the bVII triad and IV7 blues bounce—ideal for cascading major-pentatonic + b7 licks.',
+  },
+  {
+    id: 'phish-dom-funk',
+    category: 'Jam-Band & Rock',
+    title: 'Phish Dominant Funk Turnaround',
+    song: 'Tweezer / Tube – Phish',
+    chords: ['I7#9', 'IV9', 'V7#9', 'I7#9'],
+    description:
+      'Gritty jam-funk progression using biting 7#9 voicings on I and V around a greasy IV9 pocket.',
+  },
+  {
+    id: 'allman-dom-shuffle',
+    category: 'Jam-Band & Rock',
+    title: 'Southern Rock Dominant Shuffle',
+    song: 'Statesboro Blues / One Way Out – Allman Brothers Band',
+    chords: ['I7', 'IV9', 'I13', 'V9'],
+    description:
+      'Swinging dominant blues-rock cycle mixing 7th, 9th, and 13th colors for expressive slide and twin-guitar phrasing.',
+  },
+];
+
+      // =========================================================================
+      // 5. UI ICONS (Inline SVG)
+      // =========================================================================
+      function PlayIcon({ className = 'w-4 h-4' }) {
+        return (
+          <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+            <path d="M8 5.14v14l11-7-11-7z" />
+          </svg>
+        );
+      }
+
+      function StopIcon({ className = 'w-4 h-4' }) {
+        return (
+          <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2" />
+          </svg>
+        );
+      }
+
+      function ChevronIcon({ open, className = 'w-4 h-4' }) {
+        return (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`${className} transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        );
+      }
+
+      function GridIcon({ className = 'w-3.5 h-3.5' }) {
+        return (
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+            <line x1="15" y1="3" x2="15" y2="21" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="3" y1="15" x2="21" y2="15" />
+          </svg>
+        );
+      }
+
+      // =========================================================================
+      // 6. SVG GUITAR CHORD VOICING DIAGRAM (6 strings, 4 frets)
+      // =========================================================================
+      function ChordDiagram({ chord, isActive, onPlay }) {
+        const voicing = useMemo(
+          () => getChordVoicing(chord.root, chord.quality),
+          [chord.root, chord.quality]
+        );
+
+        const { frets, baseFret } = voicing;
+        // SVG geometry
+        const leftPad = 24;
+        const topPad = 22;
+        const stringGap = 15; // 5 gaps * 15 = 75px width
+        const fretGap = 19;   // 4 frets * 19 = 76px height
+        const width = leftPad + stringGap * 5 + 14;
+        const height = topPad + fretGap * 4 + 14;
+
+        return (
+          <button
+            type="button"
+            onClick={() => onPlay(voicing.midiNotes)}
+            title={`Play ${chord.name}`}
+            className={`shrink-0 flex flex-col items-center rounded-xl border p-2.5 transition-all active:scale-95 ${
+              isActive
+                ? 'bg-amber-500/10 border-amber-500/60 shadow-[0_0_12px_rgba(245,158,11,0.18)]'
+                : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-700'
+            }`}
+          >
+            <div className="flex items-baseline gap-1.5 mb-1">
+              <span className="text-xs font-bold text-zinc-100 tracking-tight">{chord.name}</span>
+              <span className="text-[10px] font-mono text-zinc-500">{chord.roman}</span>
+            </div>
+
+            <svg
+              width={width}
+              height={height}
+              viewBox={`0 0 ${width} ${height}`}
+              className="overflow-visible select-none"
+              role="img"
+              aria-label={`${chord.name} guitar chord diagram`}
+            >
+              {/* Fret position label when shifted up the neck */}
+              {baseFret > 1 && (
+                <text
+                  x={leftPad - 5}
+                  y={topPad + fretGap * 0.65}
+                  textAnchor="end"
+                  className="fill-amber-400 font-mono font-semibold"
+                  style={{ fontSize: '10px' }}
+                >
+                  {baseFret}fr
+                </text>
+              )}
+
+              {/* Nut or top fret line */}
+              <line
+                x1={leftPad}
+                y1={topPad}
+                x2={leftPad + stringGap * 5}
+                y2={topPad}
+                stroke={baseFret === 1 ? '#e4e4e7' : '#52525b'}
+                strokeWidth={baseFret === 1 ? 3.5 : 1.5}
+                strokeLinecap="round"
+              />
+
+              {/* 4 Horizontal Fret Lines */}
+              {[1, 2, 3, 4].map((fretIdx) => {
+                const y = topPad + fretIdx * fretGap;
+                return (
+                  <line
+                    key={fretIdx}
+                    x1={leftPad}
+                    y1={y}
+                    x2={leftPad + stringGap * 5}
+                    y2={y}
+                    stroke="#3f3f46"
+                    strokeWidth="1.2"
+                  />
+                );
+              })}
+
+              {/* 6 Vertical String Lines */}
+              {[0, 1, 2, 3, 4, 5].map((strIdx) => {
+                const x = leftPad + strIdx * stringGap;
+                return (
+                  <line
+                    key={strIdx}
+                    x1={x}
+                    y1={topPad}
+                    x2={x}
+                    y2={topPad + fretGap * 4}
+                    stroke="#52525b"
+                    strokeWidth={strIdx < 2 ? '1.6' : '1.1'}
+                  />
+                );
+              })}
+
+              {/* Open / Muted Markers & Finger Dots */}
+              {frets.map((fret, strIdx) => {
+                const x = leftPad + strIdx * stringGap;
+                if (fret === -1) {
+                  return (
+                    <g key={strIdx} stroke="#71717a" strokeWidth="1.6" strokeLinecap="round">
+                      <line x1={x - 3.5} y1={topPad - 13} x2={x + 3.5} y2={topPad - 6} />
+                      <line x1={x + 3.5} y1={topPad - 13} x2={x - 3.5} y2={topPad - 6} />
+                    </g>
+                  );
+                }
+                if (fret === 0) {
+                  return (
+                    <circle
+                      key={strIdx}
+                      cx={x}
+                      cy={topPad - 9.5}
+                      r="3.8"
+                      fill="none"
+                      stroke="#a1a1aa"
+                      strokeWidth="1.6"
+                    />
+                  );
+                }
+                const relFret = fret - baseFret + 1;
+                if (relFret < 1 || relFret > 4) return null;
+                const y = topPad + (relFret - 0.5) * fretGap;
+                return (
+                  <circle
+                    key={strIdx}
+                    cx={x}
+                    cy={y}
+                    r="5.2"
+                    fill="#f59e0b"
+                    stroke="#18181b"
+                    strokeWidth="1.2"
+                  />
+                );
+              })}
+            </svg>
+          </button>
+        );
+      }
+
+      // =========================================================================
+      // 7. PROGRESSION CARD COMPONENT
+      // =========================================================================
+      function ProgressionCard({
+        progression,
+        progId,
+        selectedKey,
+        isPlaying,
+        activeChordIdx,
+        onTogglePlay,
+        onPlaySingleChord,
+      }) {
+        const [showChords, setShowChords] = useState(false);
+        const [flashedIdx, setFlashedIdx] = useState(null);
+        const flashTimerRef = useRef(null);
+
+        const transposedChords = useMemo(() => {
+          return progression.chords.map((roman) => {
+            const chord = transposeRomanChord(roman, selectedKey);
+            const voicing = getChordVoicing(chord.root, chord.quality);
+            return { ...chord, voicing };
+          });
+        }, [progression.chords, selectedKey]);
+
+        useEffect(() => {
+          return () => {
+            if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+          };
+        }, []);
+
+        const handlePillClick = (chordObj, idx) => {
+          onPlaySingleChord(chordObj.voicing.midiNotes);
+          setFlashedIdx(idx);
+          if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+          flashTimerRef.current = setTimeout(() => setFlashedIdx(null), 420);
+        };
+
+        return (
+          <div
+            className={`rounded-2xl border p-4 transition-colors ${
+              isPlaying
+                ? 'bg-zinc-900 border-amber-500/50 shadow-[0_0_20px_rgba(245,158,11,0.08)]'
+                : 'bg-zinc-900/90 border-zinc-800'
+            }`}
+          >
+            {/* Card Header */}
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <h4 className="text-sm sm:text-base font-semibold text-zinc-100 leading-snug">
+                  {progression.title}
+                </h4>
+                {progression.song && (
+                  <p className="text-xs text-amber-400/90 mt-0.5 truncate">
+                    ♪ {progression.song}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowChords((prev) => !prev)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium border transition-colors min-h-[38px] ${
+                    showChords
+                      ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
+                      : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                  }`}
+                >
+                  <GridIcon className="w-3.5 h-3.5" />
+                  <span>{showChords ? 'Hide Chords' : 'Chords'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onTogglePlay(progId, transposedChords)}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all min-h-[38px] active:scale-95 ${
+                    isPlaying
+                      ? 'bg-amber-500 text-zinc-950 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
+                      : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700/80'
+                  }`}
+                >
+                  {isPlaying ? (
+                    <>
+                      <StopIcon className="w-3.5 h-3.5" />
+                      <span>Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlayIcon className="w-3.5 h-3.5" />
+                      <span>Play</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Chord Pills Grid */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {transposedChords.map((chordObj, idx) => {
+                const isHighlighted =
+                  (isPlaying && activeChordIdx === idx) || flashedIdx === idx;
+                return (
+                  <button
+                    key={`${idx}-${chordObj.roman}`}
+                    type="button"
+                    onClick={() => handlePillClick(chordObj, idx)}
+                    className={`flex flex-col items-center justify-center min-w-[60px] px-3 py-2 rounded-xl border transition-all active:scale-95 ${
+                      isHighlighted
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.28)] -translate-y-0.5'
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-600 hover:bg-zinc-950/60'
+                    }`}
+                  >
+                    <span className="text-sm sm:text-base font-bold tracking-tight">
+                      {chordObj.name}
+                    </span>
+                    <span
+                      className={`text-[11px] font-mono mt-0.5 ${
+                        isHighlighted ? 'text-amber-300/90' : 'text-zinc-500'
+                      }`}
+                    >
+                      {chordObj.roman}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Harmonic Description */}
+            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+              {progression.description}
+            </p>
+
+            {/* Expandable Horizontal Guitar Chord Diagrams Drawer */}
+            {showChords && (
+              <div className="mt-3.5 pt-3.5 border-t border-zinc-800/80">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Guitar Voicings (Tap diagram to audition)
+                  </span>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto pb-2 thin-scrollbar">
+                  {transposedChords.map((chordObj, idx) => (
+                    <ChordDiagram
+                      key={`diag-${idx}-${chordObj.name}`}
+                      chord={chordObj}
+                      isActive={isPlaying && activeChordIdx === idx}
+                      onPlay={onPlaySingleChord}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // =========================================================================
+      // 8. MODE ACCORDION ITEM
+      // =========================================================================
+      function ModeAccordionItem({
+        mode,
+        groupId,
+        selectedKey,
+        isExpanded,
+        onToggleExpand,
+        playingProgId,
+        activeChordIdx,
+        onTogglePlay,
+        onPlaySingleChord,
+      }) {
+        const modeTitle = formatModeTitle(selectedKey, mode.name);
+
+        return (
+          <div
+            className={`rounded-2xl border transition-colors overflow-hidden ${
+              isExpanded
+                ? 'bg-zinc-900/70 border-zinc-700'
+                : 'bg-zinc-900/40 border-zinc-800/90 hover:border-zinc-700/80'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              aria-expanded={isExpanded}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left min-h-[58px]"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold border ${
+                    isExpanded
+                      ? 'bg-amber-500 text-zinc-950 border-amber-400'
+                      : 'bg-zinc-800 text-amber-400 border-zinc-700'
+                  }`}
+                >
+                  {mode.number}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm sm:text-base font-semibold text-zinc-100 truncate">
+                    {modeTitle}
+                  </div>
+                  <div className="text-xs font-mono text-zinc-400 mt-0.5 truncate">
+                    {mode.formula}
+                  </div>
+                </div>
+              </div>
+
+              <span className="shrink-0 text-zinc-400">
+                <ChevronIcon open={isExpanded} className="w-5 h-5" />
+              </span>
+            </button>
+
+            {isExpanded && (
+              <div className="px-4 pb-4 pt-1 space-y-3 border-t border-zinc-800/70">
+                {/* Harmonic Vibe */}
+                <div className="rounded-xl bg-zinc-950/70 border border-zinc-800/80 px-3.5 py-2.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-400 block mb-0.5">
+                    Harmonic Vibe
+                  </span>
+                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                    {mode.vibe}
+                  </p>
+                </div>
+
+                {/* Progressions */}
+                <div className="space-y-3">
+                  {mode.progressions.map((prog, pIdx) => {
+                    const progId = `${groupId}-${mode.number}-${pIdx}`;
+                    return (
+                      <ProgressionCard
+                        key={progId}
+                        progression={prog}
+                        progId={progId}
+                        selectedKey={selectedKey}
+                        isPlaying={playingProgId === progId}
+                        activeChordIdx={activeChordIdx}
+                        onTogglePlay={onTogglePlay}
+                        onPlaySingleChord={onPlaySingleChord}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // =========================================================================
+      // 9. MAIN APP
+      // =========================================================================
+      function App() {
+        const [selectedKey, setSelectedKey] = useState('C');
+        const [activeTab, setActiveTab] = useState('modal'); // 'modal' | 'dominant'
+        const [selectedGroupId, setSelectedGroupId] = useState('major');
+        const [expandedModeKey, setExpandedModeKey] = useState('major-1');
+        const [domCategory, setDomCategory] = useState('All');
+
+        // Audio / Playback state
+        const [playMode, setPlayMode] = useState('strum'); // 'strum' | 'arpeggio'
+        const [bpm, setBpm] = useState(92);
+        const [playingProgId, setPlayingProgId] = useState(null);
+        const [activeChordIdx, setActiveChordIdx] = useState(-1);
+
+        const loopTimerRef = useRef(null);
+        const loopStateRef = useRef({
+          progId: null,
+          chords: [],
+          step: 0,
+        });
+
+        const stopPlayback = useCallback(() => {
+          if (loopTimerRef.current) {
+            clearInterval(loopTimerRef.current);
+            loopTimerRef.current = null;
+          }
+          loopStateRef.current = { progId: null, chords: [], step: 0 };
+          setPlayingProgId(null);
+          setActiveChordIdx(-1);
+          audioEngine.stopAllNotes();
+        }, []);
+
+        const playSingleChord = useCallback(
+          (midiNotes) => {
+            const beatSec = (60 / bpm) * 2;
+            audioEngine.playChord(midiNotes, playMode, beatSec);
+          },
+          [bpm, playMode]
+        );
+
+        const startOrRestartLoop = useCallback(
+          (progId, transposedChords, resetStep = true) => {
+            if (loopTimerRef.current) {
+              clearInterval(loopTimerRef.current);
+              loopTimerRef.current = null;
+            }
+            const beatMs = (60 / bpm) * 2 * 1000; // 2 beats per chord
+            const beatSec = beatMs / 1000;
+
+            const startIdx = resetStep ? 0 : loopStateRef.current.step % transposedChords.length;
+            loopStateRef.current = {
+              progId,
+              chords: transposedChords,
+              step: startIdx,
+            };
+
+            const triggerStep = () => {
+              const st = loopStateRef.current;
+              if (!st.chords.length) return;
+              const idx = st.step % st.chords.length;
+              setActiveChordIdx(idx);
+              audioEngine.playChord(st.chords[idx].voicing.midiNotes, playMode, beatSec);
+              st.step = (idx + 1) % st.chords.length;
+            };
+
+            setPlayingProgId(progId);
+            if (resetStep) {
+              triggerStep();
+            }
+            loopTimerRef.current = setInterval(triggerStep, beatMs);
+          },
+          [bpm, playMode]
+        );
+
+        const handleTogglePlay = useCallback(
+          (progId, transposedChords) => {
+            if (playingProgId === progId) {
+              stopPlayback();
+            } else {
+              startOrRestartLoop(progId, transposedChords, true);
+            }
+          },
+          [playingProgId, stopPlayback, startOrRestartLoop]
+        );
+
+        // Live-update loop speed, strum/arpeggio, or transposed chords if key/BPM/mode changes while playing
+        useEffect(() => {
+          if (!playingProgId) return;
+          // Re-resolve active chords in current key if key changed
+          const updatedChords = loopStateRef.current.chords.map((c) => {
+            const chord = transposeRomanChord(c.roman, selectedKey);
+            const voicing = getChordVoicing(chord.root, chord.quality);
+            return { ...chord, voicing };
+          });
+          if (updatedChords.length) {
+            startOrRestartLoop(playingProgId, updatedChords, false);
+          }
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [bpm, playMode, selectedKey]);
+
+        useEffect(() => {
+          return () => {
+            if (loopTimerRef.current) clearInterval(loopTimerRef.current);
+          };
+        }, []);
+
+        const currentGroup = useMemo(
+          () => SCALE_GROUPS.find((g) => g.id === selectedGroupId) || SCALE_GROUPS[0],
+          [selectedGroupId]
+        );
+
+        const isOtherSelected = !PRIMARY_GROUP_IDS.includes(selectedGroupId);
+
+        const handleSelectGroup = (groupId) => {
+          stopPlayback();
+          setSelectedGroupId(groupId);
+          setExpandedModeKey(`${groupId}-1`);
+        };
+
+        const handleSwitchTab = (tab) => {
+          if (tab !== activeTab) {
+            stopPlayback();
+            setActiveTab(tab);
+          }
+        };
+
+        const filteredDominantProgs = useMemo(() => {
+          if (domCategory === 'All') return DOMINANT_PROGRESSIONS;
+          return DOMINANT_PROGRESSIONS.filter((p) => p.category === domCategory);
+        }, [domCategory]);
+
+        return (
+          <div className="min-h-screen bg-zinc-950 text-zinc-100 pb-16">
+            {/* Sticky Top Bar: Brand, Synth Controls, Global Key Selector, Nav Tabs */}
+            <header className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/90">
+              <div className="max-w-2xl mx-auto px-3 sm:px-4 pt-3 pb-2.5 space-y-3">
+                {/* Brand + Audio Controls */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center text-zinc-950 font-black text-base shadow-[0_0_16px_rgba(245,158,11,0.3)]">
+                      M
+                    </div>
+                    <div>
+                      <h1 className="text-lg font-bold tracking-tight text-zinc-50 leading-none">
+                        Modaly
+                      </h1>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Key of <span className="text-amber-400 font-semibold">{selectedKey}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Strum/Arpeggio + Tempo Controls */}
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div
+                      className="inline-flex rounded-xl bg-zinc-900 border border-zinc-800 p-0.5"
+                      role="group"
+                      aria-label="Playback style"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setPlayMode('strum')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          playMode === 'strum'
+                            ? 'bg-amber-500 text-zinc-950 font-semibold'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        Strum
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPlayMode('arpeggio')}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          playMode === 'arpeggio'
+                            ? 'bg-amber-500 text-zinc-950 font-semibold'
+                            : 'text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        Arpeggio
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5">
+                      <input
+                        type="range"
+                        min="60"
+                        max="150"
+                        step="1"
+                        value={bpm}
+                        onChange={(e) => setBpm(Number(e.target.value))}
+                        aria-label="Tempo BPM"
+                        className="amber-slider w-16 sm:w-20"
+                      />
+                      <span className="text-[11px] font-mono text-amber-400 w-12 text-right tabular-nums">
+                        {bpm} <span className="text-zinc-500">BPM</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Global Key Selector (All 12 Keys) */}
+                <div
+                  className="grid grid-cols-6 sm:grid-cols-12 gap-1.5"
+                  role="group"
+                  aria-label="Global Key Selector"
+                >
+                  {KEYS.map((keyName) => {
+                    const active = selectedKey === keyName;
+                    return (
+                      <button
+                        key={keyName}
+                        type="button"
+                        onClick={() => setSelectedKey(keyName)}
+                        className={`h-9 rounded-xl text-xs sm:text-sm font-semibold transition-all border active:scale-95 ${
+                          active
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                            : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-zinc-100'
+                        }`}
+                      >
+                        {keyName}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Two Main Navigation Tabs */}
+                <nav className="grid grid-cols-2 gap-2 pt-0.5" aria-label="Main sections">
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchTab('modal')}
+                    className={`h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all border ${
+                      activeTab === 'modal'
+                        ? 'bg-zinc-800 text-amber-400 border-amber-500/50'
+                        : 'bg-zinc-900/50 text-zinc-400 border-zinc-800/80 hover:text-zinc-200'
+                    }`}
+                  >
+                    Modal Library
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchTab('dominant')}
+                    className={`h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all border ${
+                      activeTab === 'dominant'
+                        ? 'bg-zinc-800 text-amber-400 border-amber-500/50'
+                        : 'bg-zinc-900/50 text-zinc-400 border-zinc-800/80 hover:text-zinc-200'
+                    }`}
+                  >
+                    Dominant 7th
+                  </button>
+                </nav>
+              </div>
+            </header>
+
+            {/* Main Content Container */}
+            <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
+              {activeTab === 'modal' ? (
+                <>
+                  {/* Single-Row 3-Item Scale Group Selector */}
+                  <div className="grid grid-cols-3 gap-2" role="group" aria-label="Scale Group Selector">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectGroup('major')}
+                      className={`h-11 px-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all truncate ${
+                        selectedGroupId === 'major'
+                          ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                      }`}
+                    >
+                      Major
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectGroup('harmonic-minor')}
+                      className={`h-11 px-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all truncate ${
+                        selectedGroupId === 'harmonic-minor'
+                          ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                          : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                      }`}
+                    >
+                      Harmonic Minor
+                    </button>
+
+                    <div className="relative">
+                      <select
+                        value={isOtherSelected ? selectedGroupId : ''}
+                        onChange={(e) => {
+                          if (e.target.value) handleSelectGroup(e.target.value);
+                        }}
+                        aria-label="Other scale groups"
+                        className={`w-full h-11 px-2.5 pr-6 rounded-xl text-xs sm:text-sm font-semibold border appearance-none cursor-pointer transition-all truncate focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                          isOtherSelected
+                            ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                            : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                        }`}
+                      >
+                        <option value="" disabled className="bg-zinc-900 text-zinc-400">
+                          Other ▾
+                        </option>
+                        {OTHER_GROUPS.map((group) => (
+                          <option
+                            key={group.id}
+                            value={group.id}
+                            className="bg-zinc-900 text-zinc-100"
+                          >
+                            {group.name}
+                          </option>
+                        ))}
+                      </select>
+                      {isOtherSelected && (
+                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-xs">
+                          ▾
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Active Scale Group Heading */}
+                  <div className="flex items-center justify-between px-1">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      {currentGroup.name} Modes ({currentGroup.modes.length})
+                    </h2>
+                    <span className="text-[11px] text-zinc-500">
+                      Tap a mode to explore progressions
+                    </span>
+                  </div>
+
+                  {/* Numbered Modes Accordion List */}
+                  <div className="space-y-2.5">
+                    {currentGroup.modes.map((mode) => {
+                      const modeKey = `${currentGroup.id}-${mode.number}`;
+                      return (
+                        <ModeAccordionItem
+                          key={modeKey}
+                          mode={mode}
+                          groupId={currentGroup.id}
+                          selectedKey={selectedKey}
+                          isExpanded={expandedModeKey === modeKey}
+                          onToggleExpand={() =>
+                            setExpandedModeKey((prev) => (prev === modeKey ? null : modeKey))
+                          }
+                          playingProgId={playingProgId}
+                          activeChordIdx={activeChordIdx}
+                          onTogglePlay={handleTogglePlay}
+                          onPlaySingleChord={playSingleChord}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Dominant 7th Category Filter Pills */}
+                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="Dominant 7th categories">
+                    {DOMINANT_CATEGORIES.map((category) => {
+                      const active = domCategory === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => {
+                            stopPlayback();
+                            setDomCategory(category);
+                          }}
+                          className={`shrink-0 h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
+                            active
+                              ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                              : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                          }`}
+                        >
+                          {category}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dominant 7th Progressions */}
+                  <div className="space-y-3">
+                    {filteredDominantProgs.map((prog) => {
+                      const progId = `dom-${prog.id}`;
+                      return (
+                        <ProgressionCard
+                          key={progId}
+                          progression={prog}
+                          progId={progId}
+                          selectedKey={selectedKey}
+                          isPlaying={playingProgId === progId}
+                          activeChordIdx={activeChordIdx}
+                          onTogglePlay={handleTogglePlay}
+                          onPlaySingleChord={playSingleChord}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </main>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
