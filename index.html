@@ -635,17 +635,24 @@ class GuitarAudioEngine {
 
   _bindGestureUnlock() {
     if (typeof window === 'undefined') return;
-    const onFirstGesture = () => {
-      this.unlock();
-      if (this.unlocked && this.ctx && this.ctx.state === 'running') {
-        window.removeEventListener('touchstart', onFirstGesture, true);
-        window.removeEventListener('pointerdown', onFirstGesture, true);
-        window.removeEventListener('click', onFirstGesture, true);
+    // Keep gesture listeners alive permanently so we can re-resume the
+    // AudioContext after it is suspended by an OS audio interruption
+    // (phone call, another media app taking focus, etc.).
+    const onGesture = () => {
+      if (!this.ctx) {
+        this.unlock();
+        return;
+      }
+      if (this.ctx.state !== 'running') {
+        this.ctx.resume().catch(() => {});
+      }
+      if (!this.unlocked) {
+        this.unlock();
       }
     };
-    window.addEventListener('touchstart', onFirstGesture, { capture: true, passive: true });
-    window.addEventListener('pointerdown', onFirstGesture, { capture: true, passive: true });
-    window.addEventListener('click', onFirstGesture, { capture: true, passive: true });
+    window.addEventListener('touchstart', onGesture, { capture: true, passive: true });
+    window.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
+    window.addEventListener('click', onGesture, { capture: true, passive: true });
   }
 
   unlock() {
@@ -682,6 +689,15 @@ class GuitarAudioEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(0.45, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
+
+      // When the OS interrupts audio (another app, phone call, etc.) the
+      // browser suspends the AudioContext. Mark it as needing re-unlock so
+      // the next user gesture automatically resumes playback.
+      this.ctx.onstatechange = () => {
+        if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+          this.unlocked = false;
+        }
+      };
     }
     if (this.ctx.state !== 'running') {
       this.ctx.resume().catch(() => {});
