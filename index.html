@@ -3111,8 +3111,10 @@ const DOMINANT_PROGRESSIONS = [
           dotTimerRef.current = setTimeout(() => setActiveDotKey(null), 320);
         };
 
-        // Fretboard geometry: 6 strings (top = high e [idx 5], bottom = low E [idx 0]), frets 1..12
-        const leftPad = 32;
+        // Fretboard geometry: 6 strings (top = high e [idx 5], bottom = low E [idx 0]), open (0) + frets 1..12
+        const stringLabelX = 12;
+        const openDotX = 36;
+        const leftPad = 56;
         const topPad = 24;
         const fretWidth = 44; // 12 * 44 = 528
         const stringGap = 26; // 5 * 26 = 130
@@ -3178,9 +3180,9 @@ const DOMINANT_PROGRESSIONS = [
                 width={width}
                 height={height}
                 viewBox={`0 0 ${width} ${height}`}
-                className="min-w-[572px] select-none"
+                className="min-w-[596px] select-none"
                 role="img"
-                aria-label={`${selectedKey} ${mode.name} soloing notes from fret 1 to 12`}
+                aria-label={`${selectedKey} ${mode.name} soloing notes on open strings and frets 1 to 12`}
               >
                 {/* Fretboard wood/dark surface */}
                 <rect
@@ -3192,7 +3194,16 @@ const DOMINANT_PROGRESSIONS = [
                   fill="#0c0c0f"
                 />
 
-                {/* Fret numbers 1–12 */}
+                {/* Open string column label + Fret numbers 1–12 */}
+                <text
+                  x={openDotX}
+                  y={14}
+                  textAnchor="middle"
+                  fill="#71717a"
+                  style={{ fontSize: '10px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}
+                >
+                  0
+                </text>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((fretNum) => {
                   const cx = leftPad + (fretNum - 0.5) * fretWidth;
                   return (
@@ -3263,7 +3274,7 @@ const DOMINANT_PROGRESSIONS = [
                   return (
                     <g key={`str-${lbl}-${rowIdx}`}>
                       <text
-                        x={leftPad - 12}
+                        x={stringLabelX}
                         y={y + 3.5}
                         textAnchor="middle"
                         fill="#71717a"
@@ -3271,6 +3282,15 @@ const DOMINANT_PROGRESSIONS = [
                       >
                         {lbl}
                       </text>
+                      <line
+                        x1={openDotX}
+                        y1={y}
+                        x2={leftPad}
+                        y2={y}
+                        stroke="#27272a"
+                        strokeDasharray="2 2"
+                        strokeWidth={0.9 + rowIdx * 0.2}
+                      />
                       <line
                         x1={leftPad}
                         y1={y}
@@ -3283,20 +3303,19 @@ const DOMINANT_PROGRESSIONS = [
                   );
                 })}
 
-                {/* Scale Note Dots across Frets 1–12 */}
+                {/* Scale Note Dots across Open Strings (0) & Frets 1–12 */}
                 {Array.from({ length: 6 }, (_, rowIdx) => {
                   const stringIdx = 5 - rowIdx; // row 0 = high e (OPEN_STRING_MIDI[5]), row 5 = low E (OPEN_STRING_MIDI[0])
                   const openMidi = OPEN_STRING_MIDI[stringIdx];
                   const y = topPad + rowIdx * stringGap;
 
-                  return Array.from({ length: 12 }, (__, fIdx) => {
-                    const fretNum = fIdx + 1;
+                  return Array.from({ length: 13 }, (__, fretNum) => {
                     const midi = openMidi + fretNum;
                     const pitchClass = midi % 12;
                     const scaleNote = pitchMap[pitchClass];
                     if (!scaleNote) return null;
 
-                    const cx = leftPad + (fretNum - 0.5) * fretWidth;
+                    const cx = fretNum === 0 ? openDotX : leftPad + (fretNum - 0.5) * fretWidth;
                     const dotKey = `${stringIdx}-${fretNum}`;
                     const isFlashed = activeDotKey === dotKey;
                     const labelText = labelMode === 'notes' ? scaleNote.note : scaleNote.interval;
@@ -3307,7 +3326,7 @@ const DOMINANT_PROGRESSIONS = [
                         onClick={() => handleNoteClick(dotKey, midi)}
                         className="cursor-pointer"
                         role="button"
-                        aria-label={`Fret ${fretNum} string ${stringLabels[rowIdx]}: ${scaleNote.note}`}
+                        aria-label={`${fretNum === 0 ? 'Open' : `Fret ${fretNum}`} string ${stringLabels[rowIdx]}: ${scaleNote.note}`}
                       >
                         <circle
                           cx={cx}
