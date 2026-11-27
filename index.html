@@ -623,6 +623,55 @@ function getChordVoicing(rootNote, rawQuality) {
       // Web Audio API Guitar Synthesizer
 // Triangle + detuned sawtooth oscillators routed through a lowpass filter with envelope decay.
 
+// Instrument presets — each defines the synthesis parameters used in playStringNote.
+const INSTRUMENT_PRESETS = {
+  guitar: {
+    label: 'Guitar',
+    emoji: '🎸',
+    osc1: { type: 'triangle', gainAmt: 0.68 },
+    osc2: { type: 'sawtooth', gainAmt: 0.28, detune: 6.5 },
+    filter: { Q: 1.4, startMult: 7.5, endMult: 2.1, startMax: 3400, endMax: 420 },
+    env: { attack: 0.01, peak: 0.26, decay: 1.45, filterDecayFrac: 0.75 },
+    masterGain: 0.45,
+  },
+  nylon: {
+    label: 'Nylon Guitar',
+    emoji: '🎶',
+    osc1: { type: 'sine', gainAmt: 0.72 },
+    osc2: { type: 'triangle', gainAmt: 0.30, detune: 4.0 },
+    filter: { Q: 1.0, startMult: 5.0, endMult: 1.8, startMax: 2400, endMax: 320 },
+    env: { attack: 0.018, peak: 0.24, decay: 1.6, filterDecayFrac: 0.70 },
+    masterGain: 0.50,
+  },
+  piano: {
+    label: 'Piano',
+    emoji: '🎹',
+    osc1: { type: 'sawtooth', gainAmt: 0.55 },
+    osc2: { type: 'sawtooth', gainAmt: 0.38, detune: 2.0 },
+    filter: { Q: 0.8, startMult: 14.0, endMult: 3.5, startMax: 8000, endMax: 700 },
+    env: { attack: 0.004, peak: 0.32, decay: 1.1, filterDecayFrac: 0.45 },
+    masterGain: 0.42,
+  },
+  ePiano: {
+    label: 'Electric Piano',
+    emoji: '🎵',
+    osc1: { type: 'sine', gainAmt: 0.60 },
+    osc2: { type: 'triangle', gainAmt: 0.44, detune: 10.0 },
+    filter: { Q: 2.0, startMult: 6.5, endMult: 2.6, startMax: 3000, endMax: 500 },
+    env: { attack: 0.008, peak: 0.28, decay: 1.8, filterDecayFrac: 0.60 },
+    masterGain: 0.48,
+  },
+  pad: {
+    label: 'Pad',
+    emoji: '🌊',
+    osc1: { type: 'sine', gainAmt: 0.65 },
+    osc2: { type: 'sine', gainAmt: 0.38, detune: 8.0 },
+    filter: { Q: 1.6, startMult: 4.0, endMult: 2.0, startMax: 2000, endMax: 400 },
+    env: { attack: 0.12, peak: 0.22, decay: 2.4, filterDecayFrac: 0.55 },
+    masterGain: 0.52,
+  },
+};
+
 class GuitarAudioEngine {
   constructor() {
     this.ctx = null;
@@ -630,7 +679,17 @@ class GuitarAudioEngine {
     this.activeTimers = [];
     this.activeNodes = new Set();
     this.unlocked = false;
+    this.instrument = 'guitar';
     this._bindGestureUnlock();
+  }
+
+  setInstrument(name) {
+    if (!INSTRUMENT_PRESETS[name]) return;
+    this.instrument = name;
+    if (this.masterGain && this.ctx) {
+      const preset = INSTRUMENT_PRESETS[name];
+      this.masterGain.gain.setTargetAtTime(preset.masterGain, this.ctx.currentTime, 0.05);
+    }
   }
 
   _bindGestureUnlock() {
@@ -687,7 +746,8 @@ class GuitarAudioEngine {
         this.ctx = new AudioCtx();
       }
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+      const initPreset = INSTRUMENT_PRESETS[this.instrument] || INSTRUMENT_PRESETS.guitar;
+      this.masterGain.gain.setValueAtTime(initPreset.masterGain, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
       // When the OS interrupts audio (another app, phone call, etc.) the
@@ -712,37 +772,39 @@ class GuitarAudioEngine {
   playStringNote(midi, startTime, duration = 1.45) {
     const ctx = this.ensureContext();
     const freq = this.midiToFreq(midi);
+    const preset = INSTRUMENT_PRESETS[this.instrument] || INSTRUMENT_PRESETS.guitar;
+    const { osc1, osc2, filter: flt, env } = preset;
 
-    // Triangle oscillator (warm fundamental)
+    // Primary oscillator
     const triOsc = ctx.createOscillator();
-    triOsc.type = 'triangle';
+    triOsc.type = osc1.type;
     triOsc.frequency.setValueAtTime(freq, startTime);
 
-    // Detuned sawtooth oscillator (string harmonic bite & chorus warmth)
+    // Secondary oscillator (chorus / harmonic texture)
     const sawOsc = ctx.createOscillator();
-    sawOsc.type = 'sawtooth';
+    sawOsc.type = osc2.type;
     sawOsc.frequency.setValueAtTime(freq, startTime);
-    sawOsc.detune.setValueAtTime(6.5, startTime);
+    sawOsc.detune.setValueAtTime(osc2.detune, startTime);
 
     const triGain = ctx.createGain();
-    triGain.gain.setValueAtTime(0.68, startTime);
+    triGain.gain.setValueAtTime(osc1.gainAmt, startTime);
 
     const sawGain = ctx.createGain();
-    sawGain.gain.setValueAtTime(0.28, startTime);
+    sawGain.gain.setValueAtTime(osc2.gainAmt, startTime);
 
     // Lowpass filter with pluck brightness envelope
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(1.4, startTime);
-    const startCutoff = Math.min(3400, freq * 7.5);
-    const endCutoff = Math.max(420, freq * 2.1);
+    filter.Q.setValueAtTime(flt.Q, startTime);
+    const startCutoff = Math.min(flt.startMax, freq * flt.startMult);
+    const endCutoff = Math.max(flt.endMax, freq * flt.endMult);
     filter.frequency.setValueAtTime(startCutoff, startTime);
-    filter.frequency.exponentialRampToValueAtTime(endCutoff, startTime + duration * 0.75);
+    filter.frequency.exponentialRampToValueAtTime(endCutoff, startTime + duration * env.filterDecayFrac);
 
     // Amplitude ADSR-like pluck decay
     const noteGain = ctx.createGain();
     noteGain.gain.setValueAtTime(0.0001, startTime);
-    noteGain.gain.linearRampToValueAtTime(0.26, startTime + 0.01);
+    noteGain.gain.linearRampToValueAtTime(env.peak, startTime + env.attack);
     noteGain.gain.exponentialRampToValueAtTime(0.0008, startTime + duration);
 
     triOsc.connect(triGain);
@@ -3732,6 +3794,7 @@ const DOMINANT_PROGRESSIONS = [
         const [showChords, setShowChords] = useState(false);
         const [flashedIdx, setFlashedIdx] = useState(null);
         const flashTimerRef = useRef(null);
+        const chordPillRefs = useRef([]);
 
         const transposedChords = useMemo(() => {
           return progression.chords.map((roman) => {
@@ -3746,6 +3809,15 @@ const DOMINANT_PROGRESSIONS = [
             if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
           };
         }, []);
+
+        // Auto-scroll the active chord pill into view when it changes during loop playback
+        useEffect(() => {
+          if (!isPlaying || activeChordIdx < 0) return;
+          const el = chordPillRefs.current[activeChordIdx];
+          if (el) {
+            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+          }
+        }, [isPlaying, activeChordIdx]);
 
         const handlePillClick = (chordObj, idx) => {
           onPlaySingleChord(chordObj.voicing.midiNotes);
@@ -3865,6 +3937,7 @@ const DOMINANT_PROGRESSIONS = [
                     return (
                       <button
                         key={`${idx}-${chordObj.roman}`}
+                        ref={(el) => { chordPillRefs.current[idx] = el; }}
                         type="button"
                         onClick={() => handlePillClick(chordObj, idx)}
                         className={`flex flex-col items-center justify-center min-w-[60px] px-3 py-2 rounded-xl border transition-all active:scale-95 ${
@@ -4165,6 +4238,11 @@ const DOMINANT_PROGRESSIONS = [
 
         // Audio / Playback state
         const [playMode, setPlayMode] = useState('strum'); // 'strum' | 'arpeggio'
+        const [instrument, setInstrumentState] = useState('guitar');
+        const handleSetInstrument = useCallback((name) => {
+          setInstrumentState(name);
+          audioEngine.setInstrument(name);
+        }, []);
         const [bpm, setBpm] = useState(92);
         const [playingProgId, setPlayingProgId] = useState(null);
         const [activeChordIdx, setActiveChordIdx] = useState(-1);
@@ -4359,6 +4437,35 @@ const DOMINANT_PROGRESSIONS = [
                               >
                                 <CloseIcon className="w-4 h-4" />
                               </button>
+                            </div>
+
+                            {/* Instrument Picker */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-medium text-zinc-400 block">
+                                Instrument
+                              </label>
+                              <div
+                                className="grid grid-cols-5 gap-1 rounded-xl bg-zinc-950 border border-zinc-800 p-1"
+                                role="group"
+                                aria-label="Instrument"
+                              >
+                                {Object.entries(INSTRUMENT_PRESETS).map(([key, preset]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    title={preset.label}
+                                    onClick={() => handleSetInstrument(key)}
+                                    className={`flex flex-col items-center gap-0.5 py-2 rounded-lg text-[10px] font-semibold transition-colors leading-tight ${
+                                      instrument === key
+                                        ? 'bg-amber-500 text-zinc-950'
+                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                                  >
+                                    <span className="text-base leading-none">{preset.emoji}</span>
+                                    <span className="truncate w-full text-center px-0.5">{preset.label.split(' ')[0]}</span>
+                                  </button>
+                                ))}
+                              </div>
                             </div>
 
                             {/* Strum / Arpeggio Toggle */}
