@@ -2736,7 +2736,6 @@ const OTHER_GROUPS = SCALE_GROUPS.filter(
 );
 
       const DOMINANT_CATEGORIES = [
-  'All',
   'Blues & Funk',
   'Jazz & Turnarounds',
   'Jam-Band & Rock',
@@ -2784,6 +2783,56 @@ const DOMINANT_PROGRESSIONS = [
       'Lush 13th voicings rise to IV9 and pass through the #iv°7 diminished tension chord right back to the tonic.',
   },
   {
+    id: 'slow-8-bar-blues',
+    category: 'Blues & Funk',
+    title: '8-Bar Blues with #iv°7 Lift',
+    song: 'Key to the Highway – Derek and the Dominos / Big Bill Broonzy',
+    songKey: 'A',
+    chords: ['I7', 'V7', 'IV7', '#iv°7', 'I7', 'V7', 'I7', 'V7'],
+    description:
+      'Compact 8-bar blues jumping straight to V7 in bar 2, then climbing chromatically from IV7 through #iv°7 back to I7.',
+  },
+  {
+    id: 'stormy-monday-blues',
+    category: 'Blues & Funk',
+    title: 'T-Bone Chromatic Blues Walk',
+    song: 'Stormy Monday – T-Bone Walker / Allman Brothers Band',
+    songKey: 'G',
+    chords: ['I7', 'IV9', 'I7', 'I9', 'IV9', '#iv°7', 'I7', 'ii7', 'iii7', 'biii7', 'ii7', 'V9'],
+    description:
+      'Signature chromatic jazz-blues 12-bar featuring the #iv°7 dim passing chord and descending iii7–biii7–ii7–V9 turnaround.',
+  },
+  {
+    id: 'minor-blues-turnaround',
+    category: 'Blues & Funk',
+    title: 'Minor Blues (bVI7 – V7#9 Turnaround)',
+    song: 'The Thrill Is Gone – B.B. King',
+    songKey: 'Bm',
+    chords: ['i7', 'i7', 'iv7', 'iv7', 'i7', 'bVI7', 'V7#9', 'i7'],
+    description:
+      'Moody minor blues anchoring on i7 and iv7 before dropping through the soulful bVI7 – V7#9 dominant cadence.',
+  },
+  {
+    id: 'jazz-standard-8-bar-blues',
+    category: 'Jazz & Turnarounds',
+    title: 'Standard 8-Bar Blues',
+    song: 'How Long, How Long Blues – Count Basie / Leroy Carr',
+    songKey: 'Bb',
+    chords: ['I7', 'V7', 'IV7', 'IV7', 'I7', 'V7', 'I7', 'V7'],
+    description:
+      'Classic 8-bar blues form stepping to V7 in bar 2 and holding IV7 across bars 3–4 before the I7–V7 turnaround.',
+  },
+  {
+    id: 'jazz-standard-12-bar-blues',
+    category: 'Jazz & Turnarounds',
+    title: 'Standard 12-Bar Blues',
+    song: 'C Jam Blues / Now’s the Time – Duke Ellington / Charlie Parker',
+    songKey: 'C / F',
+    chords: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
+    description:
+      'The foundational 12-bar blues form: four bars of I7, two bars of IV7, two bars of I7, and the V7–IV7–I7–V7 turnaround.',
+  },
+  {
     id: 'classic-jazz-ii-v-i',
     category: 'Jazz & Turnarounds',
     title: 'Classic Jazz ii7 – V7 – Imaj7',
@@ -2824,6 +2873,36 @@ const DOMINANT_PROGRESSIONS = [
       'Instead of resolving from V7, bVII9 borrows from Mixolydian/Aeolian and glides up a whole step to Imaj7 for a soulful jazz resolution.',
   },
   {
+    id: 'bird-jazz-blues',
+    category: 'Jazz & Turnarounds',
+    title: 'Bebop Jazz Blues (12-Bar)',
+    song: 'Billie’s Bounce / Blues for Alice – Charlie Parker',
+    songKey: 'F',
+    chords: ['I7', 'IV9', 'I7', 'v7', 'I9', 'IV9', '#iv°7', 'iii7', 'VI7', 'ii7', 'V13', 'I7'],
+    description:
+      'Classic bebop blues featuring the bar-4 v7–I9 secondary ii–V into IV9, #iv°7 passing chord, and iii7–VI7–ii7–V13 turnaround.',
+  },
+  {
+    id: 'standard-i-vi-ii-v',
+    category: 'Jazz & Turnarounds',
+    title: 'Standard I – VI7 – ii7 – V9 Turnaround',
+    song: 'Blue Moon / Cheek to Cheek – Jazz Standard',
+    songKey: 'Eb / C',
+    chords: ['Imaj7', 'VI7', 'ii7', 'V9'],
+    description:
+      'The essential 4-chord jazz turnaround where secondary dominant VI7 pulls down a fifth into ii7 and V9.',
+  },
+  {
+    id: 'minor-ii-v-i-turnaround',
+    category: 'Jazz & Turnarounds',
+    title: 'Minor iiø7 – V7b9 – i6 Cadence',
+    song: 'Blue Bossa / Softly, as in a Morning Sunrise',
+    songKey: 'Cm',
+    chords: ['iiø7', 'V7b9', 'i6', 'VI7'],
+    description:
+      'Smooth minor-key jazz resolution pairing half-diminished iiø7 with spicy V7b9 into a warm minor 6th tonic.',
+  },
+  {
     id: 'dead-mixolydian-jam',
     category: 'Jam-Band & Rock',
     title: 'Grateful Dead Mixolydian Dom7 Jam',
@@ -2852,6 +2931,46 @@ const DOMINANT_PROGRESSIONS = [
     chords: ['I7', 'IV9', 'I13', 'V9'],
     description:
       'Swinging dominant blues-rock cycle mixing 7th, 9th, and 13th colors for expressive slide and twin-guitar phrasing.',
+  },
+  {
+    id: 'china-cat-jam',
+    category: 'Jam-Band & Rock',
+    title: 'Jam-Band I7 – IV – bVII – IV Bounce',
+    song: 'China Cat Sunflower / Bertha – Grateful Dead',
+    songKey: 'G',
+    chords: ['I7', 'IV', 'bVII', 'IV'],
+    description:
+      'Infectious jam-band pocket cycling endlessly between I7, IV, and Mixolydian bVII for upbeat twin-guitar interplay.',
+  },
+  {
+    id: 'dorian-dom-jam-vamp',
+    category: 'Jam-Band & Rock',
+    title: 'Dorian-Dominant Jam Vamp (i7 – IV9)',
+    song: 'Sand / Soul Shakedown Party – Phish / Bob Marley',
+    songKey: 'Am / G',
+    chords: ['i7', 'IV9', 'i7', 'V7#9'],
+    description:
+      'Hypnotic minor-7th pocket lifting to dominant IV9 and ending with a sharp V7#9 tension turnaround.',
+  },
+  {
+    id: 'texas-boogie-dom7',
+    category: 'Jam-Band & Rock',
+    title: 'Hard-Driving Dom7 Boogie Riff',
+    song: 'La Grange – ZZ Top',
+    songKey: 'A',
+    chords: ['I7', 'bIII', 'IV7', 'I7'],
+    description:
+      'Swaggering Texas blues-rock groove fusing dominant I7 and IV7 with the punchy minor-pentatonic bIII triad.',
+  },
+  {
+    id: 'swamp-rock-dom13',
+    category: 'Jam-Band & Rock',
+    title: 'Swamp-Rock Dom13 – bVII9 Groove',
+    song: 'Whipping Post / Soulshine – Allman Brothers Band',
+    songKey: 'Am / Bb',
+    chords: ['I13', 'bVII9', 'IV9', 'I7#9'],
+    description:
+      'Heavy southern jam-rock progression rolling down from I13 through bVII9 and IV9 before biting back into I7#9.',
   },
 ];
 
@@ -3811,6 +3930,110 @@ const DOMINANT_PROGRESSIONS = [
       }
 
       // =========================================================================
+      // 8B. HORIZONTAL PILL STRIP (Touch swipe + mouse wheel + desktop arrows)
+      // =========================================================================
+      function HorizontalPillStrip({ items, selectedId, onSelect, ariaLabel }) {
+        const scrollRef = useRef(null);
+        const [canLeft, setCanLeft] = useState(false);
+        const [canRight, setCanRight] = useState(false);
+
+        const updateArrows = useCallback(() => {
+          const el = scrollRef.current;
+          if (!el) return;
+          setCanLeft(el.scrollLeft > 4);
+          setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+        }, []);
+
+        useEffect(() => {
+          const el = scrollRef.current;
+          if (!el) return;
+          updateArrows();
+
+          const onWheel = (e) => {
+            if (el.scrollWidth <= el.clientWidth) return;
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+              e.preventDefault();
+              el.scrollLeft += e.deltaY;
+            }
+          };
+
+          el.addEventListener('wheel', onWheel, { passive: false });
+          window.addEventListener('resize', updateArrows);
+
+          let ro = null;
+          if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(updateArrows);
+            ro.observe(el);
+          }
+
+          return () => {
+            el.removeEventListener('wheel', onWheel);
+            window.removeEventListener('resize', updateArrows);
+            if (ro) ro.disconnect();
+          };
+        }, [updateArrows, items]);
+
+        const scrollByAmount = (delta) => {
+          const el = scrollRef.current;
+          if (!el) return;
+          el.scrollBy({ left: delta, behavior: 'smooth' });
+        };
+
+        return (
+          <div className="relative flex items-start gap-1.5">
+            {canLeft && (
+              <button
+                type="button"
+                onClick={() => scrollByAmount(-220)}
+                aria-label="Scroll left"
+                className="hidden sm:flex shrink-0 h-10 w-8 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 items-center justify-center text-base font-semibold transition-colors"
+              >
+                ‹
+              </button>
+            )}
+
+            <div
+              ref={scrollRef}
+              onScroll={updateArrows}
+              className="flex-1 min-w-0 flex gap-2 overflow-x-auto pb-1.5 thin-scrollbar"
+              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
+              role="group"
+              aria-label={ariaLabel}
+            >
+              {items.map((item) => {
+                const active = selectedId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onSelect(item.id)}
+                    className={`shrink-0 h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
+                      active
+                        ? 'bg-amber-500/15 border-amber-500 text-amber-300'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {canRight && (
+              <button
+                type="button"
+                onClick={() => scrollByAmount(220)}
+                aria-label="Scroll right"
+                className="hidden sm:flex shrink-0 h-10 w-8 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 items-center justify-center text-base font-semibold transition-colors"
+              >
+                ›
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      // =========================================================================
       // 9. MAIN APP
       // =========================================================================
       function App() {
@@ -3818,7 +4041,7 @@ const DOMINANT_PROGRESSIONS = [
         const [activeTab, setActiveTab] = useState('modal'); // 'modal' | 'dominant'
         const [selectedGroupId, setSelectedGroupId] = useState('major');
         const [expandedModeKey, setExpandedModeKey] = useState('major-1');
-        const [domCategory, setDomCategory] = useState('All');
+        const [domCategory, setDomCategory] = useState('Blues & Funk');
         const [settingsOpen, setSettingsOpen] = useState(false);
         const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about'
 
@@ -3938,8 +4161,6 @@ const DOMINANT_PROGRESSIONS = [
           [selectedGroupId]
         );
 
-        const isOtherSelected = !PRIMARY_GROUP_IDS.includes(selectedGroupId);
-
         const handleSelectGroup = (groupId) => {
           stopPlayback();
           setSelectedGroupId(groupId);
@@ -3954,7 +4175,6 @@ const DOMINANT_PROGRESSIONS = [
         };
 
         const filteredDominantProgs = useMemo(() => {
-          if (domCategory === 'All') return DOMINANT_PROGRESSIONS;
           return DOMINANT_PROGRESSIONS.filter((p) => p.category === domCategory);
         }, [domCategory]);
 
@@ -4228,65 +4448,13 @@ const DOMINANT_PROGRESSIONS = [
             <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
               {activeTab === 'modal' ? (
                 <>
-                  {/* Single-Row 3-Item Scale Group Selector */}
-                  <div className="grid grid-cols-3 gap-2" role="group" aria-label="Scale Group Selector">
-                    <button
-                      type="button"
-                      onClick={() => handleSelectGroup('major')}
-                      className={`h-11 px-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all truncate ${
-                        selectedGroupId === 'major'
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                          : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                      }`}
-                    >
-                      Major
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectGroup('harmonic-minor')}
-                      className={`h-11 px-2 rounded-xl text-xs sm:text-sm font-semibold border transition-all truncate ${
-                        selectedGroupId === 'harmonic-minor'
-                          ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                          : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                      }`}
-                    >
-                      Harmonic Minor
-                    </button>
-
-                    <div className="relative">
-                      <select
-                        value={isOtherSelected ? selectedGroupId : ''}
-                        onChange={(e) => {
-                          if (e.target.value) handleSelectGroup(e.target.value);
-                        }}
-                        aria-label="Other scale groups"
-                        className={`w-full h-11 px-2.5 pr-6 rounded-xl text-xs sm:text-sm font-semibold border appearance-none cursor-pointer transition-all truncate focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                          isOtherSelected
-                            ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                            : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <option value="" disabled className="bg-zinc-900 text-zinc-400">
-                          Other ▾
-                        </option>
-                        {OTHER_GROUPS.map((group) => (
-                          <option
-                            key={group.id}
-                            value={group.id}
-                            className="bg-zinc-900 text-zinc-100"
-                          >
-                            {group.name}
-                          </option>
-                        ))}
-                      </select>
-                      {isOtherSelected && (
-                        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-xs">
-                          ▾
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  {/* Swipeable / Scrollable Scale Group Choice Buttons */}
+                  <HorizontalPillStrip
+                    items={SCALE_GROUPS.map((g) => ({ id: g.id, label: g.name }))}
+                    selectedId={selectedGroupId}
+                    onSelect={handleSelectGroup}
+                    ariaLabel="Scale Group Selector"
+                  />
 
                   {/* Active Scale Group Heading */}
                   <div className="flex items-center justify-between px-1">
@@ -4324,28 +4492,15 @@ const DOMINANT_PROGRESSIONS = [
               ) : (
                 <>
                   {/* Dominant 7th Category Filter Pills */}
-                  <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" role="group" aria-label="Dominant 7th categories">
-                    {DOMINANT_CATEGORIES.map((category) => {
-                      const active = domCategory === category;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          onClick={() => {
-                            stopPlayback();
-                            setDomCategory(category);
-                          }}
-                          className={`shrink-0 h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold border transition-all ${
-                            active
-                              ? 'bg-amber-500/15 border-amber-500 text-amber-300'
-                              : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          {category}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <HorizontalPillStrip
+                    items={DOMINANT_CATEGORIES.map((c) => ({ id: c, label: c }))}
+                    selectedId={domCategory}
+                    onSelect={(category) => {
+                      stopPlayback();
+                      setDomCategory(category);
+                    }}
+                    ariaLabel="Dominant 7th categories"
+                  />
 
                   {/* Dominant 7th Progressions */}
                   <div className="space-y-3">
