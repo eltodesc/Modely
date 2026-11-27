@@ -2739,9 +2739,31 @@ const OTHER_GROUPS = SCALE_GROUPS.filter(
   'Blues & Funk',
   'Jazz & Turnarounds',
   'Jam-Band & Rock',
+  'Country & Western Swing',
+  'Reggae',
 ];
 
 const DOMINANT_PROGRESSIONS = [
+  {
+    id: 'standard-8-bar-blues',
+    category: 'Blues & Funk',
+    title: 'Standard 8-Bar Blues',
+    song: 'How Long, How Long Blues – Count Basie / Leroy Carr',
+    songKey: 'Bb',
+    chords: ['I7', 'V7', 'IV7', 'IV7', 'I7', 'V7', 'I7', 'V7'],
+    description:
+      'Classic 8-bar blues form stepping to V7 in bar 2 and holding IV7 across bars 3–4 before the I7–V7 turnaround.',
+  },
+  {
+    id: 'standard-12-bar-blues',
+    category: 'Blues & Funk',
+    title: 'Standard 12-Bar Blues',
+    song: 'C Jam Blues / Now’s the Time – Duke Ellington / Charlie Parker',
+    songKey: 'C / F',
+    chords: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
+    description:
+      'The foundational 12-bar blues form: four bars of I7, two bars of IV7, two bars of I7, and the V7–IV7–I7–V7 turnaround.',
+  },
   {
     id: 'quick-change-blues',
     category: 'Blues & Funk',
@@ -2756,8 +2778,8 @@ const DOMINANT_PROGRESSIONS = [
     id: 'funk-soul-vamp',
     category: 'Blues & Funk',
     title: 'Funk / Soul I9 – IV9 Vamp',
-    song: 'Play That Funky Music – Wild Cherry',
-    songKey: 'E',
+    song: 'I Got You (I Feel Good) / Cold Sweat – James Brown',
+    songKey: 'D',
     chords: ['I9', 'IV9', 'I9', 'IV9'],
     description:
       'Punchy two-chord dominant 9th groove built for syncopated 16th-note scratch strums and Dorian/Mixolydian horn lines.',
@@ -2765,22 +2787,22 @@ const DOMINANT_PROGRESSIONS = [
   {
     id: 'hendrix-funk-7sharp9',
     category: 'Blues & Funk',
-    title: 'Dominant 7#9 Funk Groove',
+    title: 'Dominant 7#9 Rock/Funk Riff',
     song: 'Purple Haze / Foxy Lady – Jimi Hendrix',
     songKey: 'E / F#',
-    chords: ['I7#9', 'bIII7', 'IV9', 'I7#9'],
+    chords: ['I7#9', 'bIII', 'IV', 'I7#9'],
     description:
-      'The unmistakable "Hendrix chord" pairs a major 3rd and minor 3rd (#9) over a dominant shell, moving into bIII7 and IV9.',
+      'The unmistakable "Hendrix chord" pairs a major 3rd and minor 3rd (#9) over a dominant shell, moving across bIII and IV triads.',
   },
   {
     id: 'gospel-dom13-walk',
     category: 'Blues & Funk',
-    title: 'Soulful Dom13 Chromatic Turnaround',
-    song: 'What’d I Say – Ray Charles',
-    songKey: 'E',
-    chords: ['I13', 'IV9', '#iv°7', 'I13'],
+    title: 'Big-Band Blues I9 – IV9 – #iv°7 Walk',
+    song: 'Everyday I Have the Blues – Count Basie / B.B. King',
+    songKey: 'Bb',
+    chords: ['I9', 'IV9', '#iv°7', 'I9'],
     description:
-      'Lush 13th voicings rise to IV9 and pass through the #iv°7 diminished tension chord right back to the tonic.',
+      'Swinging 9th voicings lift to IV9 and pass chromatically through the #iv°7 diminished tension chord right back to I9.',
   },
   {
     id: 'slow-8-bar-blues',
@@ -2811,26 +2833,6 @@ const DOMINANT_PROGRESSIONS = [
     chords: ['i7', 'i7', 'iv7', 'iv7', 'i7', 'bVI7', 'V7#9', 'i7'],
     description:
       'Moody minor blues anchoring on i7 and iv7 before dropping through the soulful bVI7 – V7#9 dominant cadence.',
-  },
-  {
-    id: 'jazz-standard-8-bar-blues',
-    category: 'Jazz & Turnarounds',
-    title: 'Standard 8-Bar Blues',
-    song: 'How Long, How Long Blues – Count Basie / Leroy Carr',
-    songKey: 'Bb',
-    chords: ['I7', 'V7', 'IV7', 'IV7', 'I7', 'V7', 'I7', 'V7'],
-    description:
-      'Classic 8-bar blues form stepping to V7 in bar 2 and holding IV7 across bars 3–4 before the I7–V7 turnaround.',
-  },
-  {
-    id: 'jazz-standard-12-bar-blues',
-    category: 'Jazz & Turnarounds',
-    title: 'Standard 12-Bar Blues',
-    song: 'C Jam Blues / Now’s the Time – Duke Ellington / Charlie Parker',
-    songKey: 'C / F',
-    chords: ['I7', 'I7', 'I7', 'I7', 'IV7', 'IV7', 'I7', 'I7', 'V7', 'IV7', 'I7', 'V7'],
-    description:
-      'The foundational 12-bar blues form: four bars of I7, two bars of IV7, two bars of I7, and the V7–IV7–I7–V7 turnaround.',
   },
   {
     id: 'classic-jazz-ii-v-i',
@@ -2905,22 +2907,22 @@ const DOMINANT_PROGRESSIONS = [
   {
     id: 'dead-mixolydian-jam',
     category: 'Jam-Band & Rock',
-    title: 'Grateful Dead Mixolydian Dom7 Jam',
-    song: 'Scarlet Begonias / Franklin’s Tower – Grateful Dead',
-    songKey: 'B / A',
-    chords: ['I7', 'bVII', 'IV7', 'I7'],
+    title: 'Grateful Dead Mixolydian I – bVII – IV Jam',
+    song: 'Franklin’s Tower / Scarlet Begonias – Grateful Dead',
+    songKey: 'A / B',
+    chords: ['I', 'bVII', 'IV', 'I'],
     description:
-      'Sun-drenched Mixolydian jam progression driven by the bVII triad and IV7 blues bounce—ideal for cascading major-pentatonic + b7 licks.',
+      'Sun-drenched Mixolydian jam progression built on clean major triads (I – bVII – IV); soloists color the tonic with the Mixolydian b7.',
   },
   {
     id: 'phish-dom-funk',
     category: 'Jam-Band & Rock',
-    title: 'Phish Dominant Funk Turnaround',
-    song: 'Tweezer / Tube – Phish',
-    songKey: 'Am / Ab',
-    chords: ['I7#9', 'IV9', 'V7#9', 'I7#9'],
+    title: 'Phish Dominant Funk Groove',
+    song: 'Tube – Phish',
+    songKey: 'Ab',
+    chords: ['I9', 'IV9', 'I7#9', 'V9'],
     description:
-      'Gritty jam-funk progression using biting 7#9 voicings on I and V around a greasy IV9 pocket.',
+      'Greasy jam-funk pocket alternating dominant 9th and biting 7#9 voicings over a syncopated clavinet/guitar groove.',
   },
   {
     id: 'allman-dom-shuffle',
@@ -2935,42 +2937,142 @@ const DOMINANT_PROGRESSIONS = [
   {
     id: 'china-cat-jam',
     category: 'Jam-Band & Rock',
-    title: 'Jam-Band I7 – IV – bVII – IV Bounce',
-    song: 'China Cat Sunflower / Bertha – Grateful Dead',
+    title: 'Jam-Band Dominant Cycle (VI7 – II7 – V7 – I7)',
+    song: 'China Cat Sunflower (Bridge) – Grateful Dead',
     songKey: 'G',
-    chords: ['I7', 'IV', 'bVII', 'IV'],
+    chords: ['VI7', 'II7', 'V7', 'I7'],
     description:
-      'Infectious jam-band pocket cycling endlessly between I7, IV, and Mixolydian bVII for upbeat twin-guitar interplay.',
+      'Bright circle-of-fifths cycle of dominant 7th chords cascading down from VI7 back into the Mixolydian I7 jam.',
   },
   {
     id: 'dorian-dom-jam-vamp',
     category: 'Jam-Band & Rock',
-    title: 'Dorian-Dominant Jam Vamp (i7 – IV9)',
-    song: 'Sand / Soul Shakedown Party – Phish / Bob Marley',
-    songKey: 'Am / G',
-    chords: ['i7', 'IV9', 'i7', 'V7#9'],
+    title: 'Disco-Funk Minor-to-Dom7 Turn (i7 – IV7 – bVI – V7)',
+    song: 'Shakedown Street – Grateful Dead',
+    songKey: 'Dm',
+    chords: ['i7', 'IV7', 'bVI', 'V7'],
     description:
-      'Hypnotic minor-7th pocket lifting to dominant IV9 and ending with a sharp V7#9 tension turnaround.',
+      'Iconic groove pairing a Dorian i7–IV7 pocket with a dramatic bVI–V7 turnaround back to the minor root.',
   },
   {
     id: 'texas-boogie-dom7',
     category: 'Jam-Band & Rock',
-    title: 'Hard-Driving Dom7 Boogie Riff',
+    title: 'Hard-Driving Blues-Rock Boogie Riff',
     song: 'La Grange – ZZ Top',
     songKey: 'A',
-    chords: ['I7', 'bIII', 'IV7', 'I7'],
+    chords: ['I7', 'bIII', 'IV', 'I7'],
     description:
-      'Swaggering Texas blues-rock groove fusing dominant I7 and IV7 with the punchy minor-pentatonic bIII triad.',
+      'Swaggering Texas blues-rock groove fusing dominant I7 drive with punchy minor-pentatonic bIII and IV chords.',
   },
   {
     id: 'swamp-rock-dom13',
     category: 'Jam-Band & Rock',
-    title: 'Swamp-Rock Dom13 – bVII9 Groove',
-    song: 'Whipping Post / Soulshine – Allman Brothers Band',
-    songKey: 'Am / Bb',
-    chords: ['I13', 'bVII9', 'IV9', 'I7#9'],
+    title: 'New Orleans Funk-Rock 7#9 Groove',
+    song: 'Fire on the Bayou – The Meters',
+    songKey: 'E',
+    chords: ['I7#9', 'bVII9', 'IV9', 'I7#9'],
     description:
-      'Heavy southern jam-rock progression rolling down from I13 through bVII9 and IV9 before biting back into I7#9.',
+      'Swampy funk-rock progression rolling from I7#9 through bVII9 and IV9 for locked-in pocket soloing.',
+  },
+  {
+    id: 'western-swing-turnaround',
+    category: 'Country & Western Swing',
+    title: 'Western Swing I6 – VI7 – II9 – V9',
+    song: 'Right or Wrong / San Antonio Rose – Bob Wills',
+    songKey: 'G / F',
+    chords: ['I6', 'VI7', 'II9', 'V9'],
+    description:
+      'Iconic Western Swing turnaround pairing warm I6 tonic chords with a jaunty cycle of dominant 7th and 9th chords.',
+  },
+  {
+    id: 'honky-tonk-ii7-v7',
+    category: 'Country & Western Swing',
+    title: 'Honky-Tonk II7 Secondary Dominant Turn',
+    song: 'Crazy Arms – Ray Price',
+    songKey: 'F',
+    chords: ['I', 'IV', 'II7', 'V7'],
+    description:
+      'Classic country shuffle using the bright II7 (V7/V) dominant lift to propel the melody straight into V7.',
+  },
+  {
+    id: 'chicken-pickin-bakersfield',
+    category: 'Country & Western Swing',
+    title: 'Bakersfield Chicken-Pickin’ Dom7 Vamp',
+    song: 'Workin’ Man Blues – Merle Haggard',
+    songKey: 'A',
+    chords: ['I7', 'IV7', 'I7', 'V7'],
+    description:
+      'Snappy Telecaster country groove built for hybrid-picked double-stops, b3→3 bends, and Mixolydian banjo rolls.',
+  },
+  {
+    id: 'rockabilly-dom7-boogie',
+    category: 'Country & Western Swing',
+    title: 'Sun-Records Rockabilly Dom7 Shuffle',
+    song: 'Folsom Prison Blues – Johnny Cash',
+    songKey: 'E',
+    chords: ['I7', 'I7', 'IV7', 'V7'],
+    description:
+      'Galloping train-beat rhythm anchored on steady dominant 7th chords with slapback-ready open-string bass walks.',
+  },
+  {
+    id: 'chet-country-jazz-dom13',
+    category: 'Country & Western Swing',
+    title: 'Nashville Country-Jazz Cycle (I – III7 – VI7 – II7 – V7)',
+    song: 'Mr. Sandman – Chet Atkins',
+    songKey: 'A',
+    chords: ['I', 'III7', 'VI7', 'II7', 'V7', 'I'],
+    description:
+      'Thumbpicking fingerstyle progression cascading through III7, VI7, II7, and V7 dominants back home to I.',
+  },
+  {
+    id: 'reggae-one-drop-dom7',
+    category: 'Reggae',
+    title: 'Roots One-Drop I – IV – V Groove',
+    song: 'Stir It Up – Bob Marley & The Wailers',
+    songKey: 'A',
+    chords: ['I', 'IV', 'V', 'IV'],
+    description:
+      'Sun-soaked one-drop reggae skank propelled by crisp off-beat upstrokes across bright I, IV, and V triads.',
+  },
+  {
+    id: 'reggae-minor-skank',
+    category: 'Reggae',
+    title: 'Minor Roots Reggae Skank (i7 – iv7)',
+    song: 'Get Up, Stand Up / Exodus – Bob Marley & The Wailers',
+    songKey: 'Cm / Am',
+    chords: ['i7', 'iv7', 'i7', 'iv7'],
+    description:
+      'Hypnotic minor-7th dub pocket anchored by a heavy bassline and crisp off-beat minor-seventh chops.',
+  },
+  {
+    id: 'reggae-dub-descent',
+    category: 'Reggae',
+    title: 'Dub Minor Descent (i – bVII – bVI – V7)',
+    song: 'Johnny Too Bad – The Slickers',
+    songKey: 'Dm',
+    chords: ['i', 'bVII', 'bVI', 'V7'],
+    description:
+      'Classic roots reggae descending progression dropping step-by-step from minor i to the dominant V7 release.',
+  },
+  {
+    id: 'reggae-rock-iii7',
+    category: 'Reggae',
+    title: 'Reggae-Rock I – III7 – vi – V',
+    song: 'Santeria – Sublime',
+    songKey: 'E',
+    chords: ['I', 'III7', 'vi', 'V'],
+    description:
+      'Bright ska/reggae-rock progression sparked by the soulful III7 (V7/vi) secondary dominant lift.',
+  },
+  {
+    id: 'rocksteady-bubble-groove',
+    category: 'Reggae',
+    title: 'Rocksteady I – IV – V Bubble',
+    song: 'The Tide Is High / Pressure Drop – The Paragons / Toots & The Maytals',
+    songKey: 'G / C',
+    chords: ['I', 'IV', 'V', 'IV'],
+    description:
+      'Crisp 1960s rocksteady groove driven by bouncy organ-and-guitar off-beats across major I, IV, and V triads.',
   },
 ];
 
@@ -4438,7 +4540,7 @@ const DOMINANT_PROGRESSIONS = [
                         : 'bg-zinc-900/50 text-zinc-400 border-zinc-800/80 hover:text-zinc-200'
                     }`}
                   >
-                    Dominant 7th
+                    Styles &amp; Grooves
                   </button>
                 </nav>
               </div>
@@ -4491,7 +4593,7 @@ const DOMINANT_PROGRESSIONS = [
                 </>
               ) : (
                 <>
-                  {/* Dominant 7th Category Filter Pills */}
+                  {/* Style & Groove Category Filter Pills */}
                   <HorizontalPillStrip
                     items={DOMINANT_CATEGORIES.map((c) => ({ id: c, label: c }))}
                     selectedId={domCategory}
@@ -4499,7 +4601,7 @@ const DOMINANT_PROGRESSIONS = [
                       stopPlayback();
                       setDomCategory(category);
                     }}
-                    ariaLabel="Dominant 7th categories"
+                    ariaLabel="Style and groove categories"
                   />
 
                   {/* Dominant 7th Progressions */}
