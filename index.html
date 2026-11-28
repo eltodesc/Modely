@@ -753,15 +753,25 @@ class GuitarAudioEngine {
 
   _bindGestureUnlock() {
     if (typeof window === 'undefined') return;
-    // Keep gesture listeners alive permanently so we can recreate or resume
-    // the AudioContext after backgrounding (especially on iOS Chrome/WKWebView
-    // where an existing AudioContext often becomes a silent zombie after ~15s).
+    let wasBackgrounded = false;
+
+    const reinitOnForeground = () => {
+      if (!this.ctx) return;
+      this.resetContext();
+      const fresh = this.ensureContext();
+      if (fresh && fresh.state !== 'running') {
+        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: fresh.state } }));
+      }
+    };
+
+    // Keep gesture listeners alive permanently so we can unlock/resume or
+    // recreate the AudioContext on the next tap if iOS leaves it suspended.
     const onGesture = () => {
       if (this.ctx && (this.needsReset || this.ctx.state === 'closed' || this.ctx.state === 'interrupted')) {
         this.resetContext();
       }
       if (!this.ctx) {
-        this.unlock();
+        this.unlock(true);
         return;
       }
       if (this.ctx.state !== 'running') {
@@ -771,54 +781,40 @@ class GuitarAudioEngine {
           }
         }).catch(() => {
           this.resetContext();
-          this.unlock();
+          this.unlock(true);
         });
       }
       if (!this.unlocked) {
-        this.unlock();
+        this.unlock(true);
       }
     };
     window.addEventListener('touchstart', onGesture, { capture: true, passive: true });
     window.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
     window.addEventListener('click', onGesture, { capture: true, passive: true });
 
-    const onVisibilityChange = () => {
+    document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         if (this.ctx) {
-          this.needsReset = true;
+          wasBackgrounded = true;
           this.unlocked = false;
         }
         return;
       }
-      if (document.visibilityState === 'visible' && this.ctx) {
-        this.needsReset = true;
-        this.unlocked = false;
-        if (this.ctx.state === 'closed') {
-          this.resetContext();
-          window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: 'suspended' } }));
-          return;
-        }
-        this.ctx.resume().then(() => {
-          if (this.ctx) {
-            window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
-          }
-        }).catch(() => {});
-        if (this.ctx.state !== 'running') {
-          window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
-        }
+      if (document.visibilityState === 'visible' && wasBackgrounded) {
+        wasBackgrounded = false;
+        reinitOnForeground();
       }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    });
     window.addEventListener('pagehide', () => {
       if (this.ctx) {
-        this.needsReset = true;
+        wasBackgrounded = true;
         this.unlocked = false;
       }
     });
     window.addEventListener('pageshow', () => {
-      if (this.ctx) {
-        this.needsReset = true;
-        this.unlocked = false;
+      if (wasBackgrounded) {
+        wasBackgrounded = false;
+        reinitOnForeground();
       }
     });
   }
@@ -835,7 +831,7 @@ class GuitarAudioEngine {
     this.activeNodes.clear();
   }
 
-  unlock() {
+  unlock(fromGesture = false) {
     if (typeof navigator !== 'undefined' && navigator.audioSession) {
       try {
         navigator.audioSession.type = 'playback';
@@ -844,14 +840,16 @@ class GuitarAudioEngine {
     const ctx = this.ensureContext();
     if (!ctx) return null;
 
-    if (!this.unlocked) {
+    if (!this.unlocked && (fromGesture || ctx.state === 'running')) {
       try {
         const buffer = ctx.createBuffer(1, 1, 22050);
         const source = ctx.createBufferSource();
         source.buffer = buffer;
         source.connect(ctx.destination);
         source.start(0);
-        this.unlocked = true;
+        if (ctx.state === 'running') {
+          this.unlocked = true;
+        }
       } catch {}
     }
     return ctx;
