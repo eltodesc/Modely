@@ -3416,19 +3416,18 @@ const DOMINANT_PROGRESSIONS = [
       // =========================================================================
       // 6. SVG GUITAR CHORD VOICING DIAGRAM (6 strings, 4 frets)
       // =========================================================================
-      function ChordDiagram({ chord, isActive, onPlay }) {
+      function ChordDiagram({ chord, isActive, onPlay, voicingIdx, onVoicingChange }) {
         const voicings = useMemo(
           () => getAllChordVoicings(chord.root, chord.quality),
           [chord.root, chord.quality]
         );
-        const [voicingIdx, setVoicingIdx] = useState(0);
         const safeIdx = Math.min(voicingIdx, voicings.length - 1);
         const voicing = voicings[safeIdx];
         const { frets, baseFret } = voicing;
 
         const goTo = (idx, e) => {
           e.stopPropagation();
-          setVoicingIdx(((idx % voicings.length) + voicings.length) % voicings.length);
+          onVoicingChange(((idx % voicings.length) + voicings.length) % voicings.length);
         };
 
         // SVG geometry
@@ -3590,7 +3589,7 @@ const DOMINANT_PROGRESSIONS = [
                     role="tab"
                     aria-selected={i === safeIdx}
                     aria-label={`Voicing ${i + 1}`}
-                    onClick={(e) => { e.stopPropagation(); setVoicingIdx(i); }}
+                    onClick={(e) => { e.stopPropagation(); onVoicingChange(i); }}
                     className={`rounded-full transition-all ${
                       i === safeIdx
                         ? 'w-3.5 h-2 bg-amber-400'
@@ -4001,6 +4000,7 @@ const DOMINANT_PROGRESSIONS = [
         activeChordIdx,
         onTogglePlay,
         onPlaySingleChord,
+        onProgressionVoicingChange = null,
         isFavorited = false,
         onToggleFavorite = null,
         defaultExpanded = false,
@@ -4009,18 +4009,35 @@ const DOMINANT_PROGRESSIONS = [
         const [isProgExpanded, setIsProgExpanded] = useState(defaultExpanded);
         const [showChords, setShowChords] = useState(false);
         const [flashedIdx, setFlashedIdx] = useState(null);
+        const [selectedVoicingIndices, setSelectedVoicingIndices] = useState({});
         const flashTimerRef = useRef(null);
         const chordPillRefs = useRef([]);
         const chordDiagramRefs = useRef([]);
         const chordScrollRef = useRef(null);
 
         const transposedChords = useMemo(() => {
-          return progression.chords.map((roman) => {
+          return progression.chords.map((roman, idx) => {
             const chord = transposeRomanChord(roman, selectedKey);
-            const voicing = getChordVoicing(chord.root, chord.quality);
-            return { ...chord, voicing };
+            const voicings = getAllChordVoicings(chord.root, chord.quality);
+            const selectedVoicingIdx = selectedVoicingIndices[idx];
+            const voicingIdx = Math.min(selectedVoicingIdx ?? 0, voicings.length - 1);
+            const voicing =
+              selectedVoicingIdx === undefined
+                ? getChordVoicing(chord.root, chord.quality)
+                : voicings[voicingIdx];
+            return { ...chord, voicing, voicingIdx: selectedVoicingIdx ?? null };
           });
-        }, [progression.chords, selectedKey]);
+        }, [progression.chords, selectedKey, selectedVoicingIndices]);
+
+        const handleVoicingChange = (idx, voicingIdx) => {
+          setSelectedVoicingIndices((previous) => ({
+            ...previous,
+            [idx]: voicingIdx,
+          }));
+          if (onProgressionVoicingChange) {
+            onProgressionVoicingChange(progId, idx, voicingIdx, transposedChords[idx]);
+          }
+        };
 
         useEffect(() => {
           return () => {
@@ -4172,8 +4189,8 @@ const DOMINANT_PROGRESSIONS = [
                           </span>
                         </button>
                         {!isLast && (
-                          <svg className="w-4 h-4 shrink-0 text-zinc-700" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                            <path d="M4 8h7M8 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <svg className="w-3 h-4 shrink-0 text-zinc-700" viewBox="0 0 12 16" fill="none" aria-hidden="true">
+                            <path d="M0 8h10M7 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         )}
                       </React.Fragment>
@@ -4243,17 +4260,29 @@ const DOMINANT_PROGRESSIONS = [
                         Guitar Voicings (Tap diagram to audition)
                       </span>
                     </div>
-                    <div ref={chordScrollRef} className="flex gap-2.5 overflow-x-auto pb-2 thin-scrollbar">
-                      {transposedChords.map((chordObj, idx) => (
-                        <div key={`diag-wrap-${idx}-${chordObj.name}`} ref={(el) => { chordDiagramRefs.current[idx] = el; }}>
-                          <ChordDiagram
-                            key={`diag-${idx}-${chordObj.name}`}
-                            chord={chordObj}
-                            isActive={isPlaying && activeChordIdx === idx}
-                            onPlay={onPlaySingleChord}
-                          />
-                        </div>
-                      ))}
+                    <div ref={chordScrollRef} className="flex items-center overflow-x-auto pb-2 thin-scrollbar">
+                      {transposedChords.map((chordObj, idx) => {
+                        const isLast = idx === transposedChords.length - 1;
+                        return (
+                          <React.Fragment key={`diag-wrap-${idx}-${chordObj.name}`}>
+                            <div ref={(el) => { chordDiagramRefs.current[idx] = el; }} className="shrink-0">
+                              <ChordDiagram
+                                key={`diag-${idx}-${chordObj.name}`}
+                                chord={chordObj}
+                                isActive={isPlaying && activeChordIdx === idx}
+                                onPlay={onPlaySingleChord}
+                                voicingIdx={selectedVoicingIndices[idx] || 0}
+                                onVoicingChange={(voicingIdx) => handleVoicingChange(idx, voicingIdx)}
+                              />
+                            </div>
+                            {!isLast && (
+                              <svg className="w-3 h-5 shrink-0 text-zinc-600" viewBox="0 0 12 16" fill="none" aria-hidden="true">
+                                <path d="M0 8h10M7 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -4314,6 +4343,7 @@ const DOMINANT_PROGRESSIONS = [
         activeChordIdx,
         onTogglePlay,
         onPlaySingleChord,
+        onProgressionVoicingChange,
         favorites,
         onToggleFavorite,
       }) {
@@ -4432,6 +4462,7 @@ const DOMINANT_PROGRESSIONS = [
                         activeChordIdx={activeChordIdx}
                         onTogglePlay={onTogglePlay}
                         onPlaySingleChord={onPlaySingleChord}
+                        onProgressionVoicingChange={onProgressionVoicingChange}
                         isFavorited={favorites && favorites.has(progId)}
                         onToggleFavorite={onToggleFavorite}
                         modeTheme={theme}
@@ -4696,14 +4727,29 @@ const DOMINANT_PROGRESSIONS = [
           [playingProgId, stopPlayback, startOrRestartLoop]
         );
 
+        const handleProgressionVoicingChange = useCallback((progId, chordIdx, voicingIdx, chord) => {
+          const loop = loopStateRef.current;
+          if (loop.progId !== progId) return;
+          const voicings = getAllChordVoicings(chord.root, chord.quality);
+          const voicing = voicings[Math.min(voicingIdx, voicings.length - 1)];
+          loop.chords = loop.chords.map((item, idx) =>
+            idx === chordIdx ? { ...item, voicing, voicingIdx } : item
+          );
+        }, []);
+
         // Live-update loop speed, strum/arpeggio, or transposed chords if key/BPM/mode changes while playing
         useEffect(() => {
           if (!playingProgId) return;
           // Re-resolve active chords in current key if key changed
           const updatedChords = loopStateRef.current.chords.map((c) => {
             const chord = transposeRomanChord(c.roman, selectedKey);
-            const voicing = getChordVoicing(chord.root, chord.quality);
-            return { ...chord, voicing };
+            const voicings = getAllChordVoicings(chord.root, chord.quality);
+            const voicingIdx = c.voicingIdx;
+            const voicing =
+              voicingIdx == null
+                ? getChordVoicing(chord.root, chord.quality)
+                : voicings[Math.min(voicingIdx, voicings.length - 1)];
+            return { ...chord, voicing, voicingIdx };
           });
           if (updatedChords.length) {
             startOrRestartLoop(playingProgId, updatedChords, false);
@@ -5167,6 +5213,7 @@ const DOMINANT_PROGRESSIONS = [
                               activeChordIdx={activeChordIdx}
                               onTogglePlay={handleTogglePlay}
                               onPlaySingleChord={playSingleChord}
+                              onProgressionVoicingChange={handleProgressionVoicingChange}
                               isFavorited={true}
                               onToggleFavorite={toggleFavorite}
                               defaultExpanded={true}
@@ -5212,6 +5259,7 @@ const DOMINANT_PROGRESSIONS = [
                           activeChordIdx={activeChordIdx}
                           onTogglePlay={handleTogglePlay}
                           onPlaySingleChord={playSingleChord}
+                          onProgressionVoicingChange={handleProgressionVoicingChange}
                           favorites={favorites}
                           onToggleFavorite={toggleFavorite}
                         />
@@ -5246,6 +5294,7 @@ const DOMINANT_PROGRESSIONS = [
                           activeChordIdx={activeChordIdx}
                           onTogglePlay={handleTogglePlay}
                           onPlaySingleChord={playSingleChord}
+                          onProgressionVoicingChange={handleProgressionVoicingChange}
                           isFavorited={favorites.has(progId)}
                           onToggleFavorite={toggleFavorite}
                         />
