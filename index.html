@@ -4098,97 +4098,45 @@ const DOMINANT_PROGRESSIONS = [
                   </span>
                 </button>
               ) : (
-                <div className="flex items-start justify-between gap-2.5">
-                  <div className="min-w-0 flex-1">
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-3">
                     <button
                       type="button"
                       onClick={() => setIsProgExpanded(false)}
                       aria-expanded={true}
-                      className="text-left w-full group"
+                      className="text-left flex-1 min-w-0 group"
                     >
                       <h4 className="text-sm sm:text-base font-semibold text-zinc-100 group-hover:text-amber-300 transition-colors leading-snug">
                         {progression.title}
                       </h4>
                     </button>
-
-                    {progression.song && (
-                      <a
-                        href={`https://open.spotify.com/search/${encodeURIComponent(progression.song)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="no-underline text-xs text-amber-400/90 hover:text-amber-300 transition-colors leading-snug inline-block mt-1"
-                      >
-                        ♪ {progression.song}
-                        {progression.songKey ? ` (${progression.songKey})` : ''}
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsProgExpanded(false)}
+                      aria-expanded={true}
+                      aria-label="Collapse progression"
+                      className="shrink-0 p-1 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors"
+                    >
+                      <ChevronIcon open={true} className="w-5 h-5" />
+                    </button>
                   </div>
 
-                  <div className="flex flex-col items-end sm:flex-row sm:items-center gap-1.5 sm:gap-2 shrink-0">
-                    <div className="flex items-center gap-1.5 sm:gap-2 sm:order-2">
-                      <button
-                        type="button"
-                        onClick={() => onTogglePlay(progId, transposedChords)}
-                        className={`inline-flex items-center gap-1.5 px-3 h-[38px] rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
-                          isPlaying
-                            ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.35)]'
-                            : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border-zinc-700/80'
-                        }`}
-                      >
-                        {isPlaying ? (
-                          <>
-                            <StopIcon className="w-3.5 h-3.5" />
-                            <span>Stop</span>
-                          </>
-                        ) : (
-                          <>
-                            <PlayIcon className="w-3.5 h-3.5" />
-                            <span>Play</span>
-                          </>
-                        )}
-                      </button>
+                  {/* Harmonic Description */}
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                    {progression.description}
+                  </p>
 
-                      <button
-                        type="button"
-                        onClick={() => setIsProgExpanded(false)}
-                        aria-expanded={true}
-                        aria-label="Collapse progression"
-                        className="p-1 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors"
-                      >
-                        <ChevronIcon open={true} className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowChords((prev) => !prev)}
-                        className={`sm:order-1 inline-flex items-center gap-1.5 px-2.5 h-[38px] rounded-xl text-xs font-medium border transition-colors ${
-                          showChords
-                            ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
-                            : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
-                        }`}
-                      >
-                        <GridIcon className="w-3.5 h-3.5" />
-                        <span>Chords</span>
-                      </button>
-                      {onToggleFavorite && (
-                        <button
-                          type="button"
-                          onClick={() => onToggleFavorite(progId)}
-                          aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                          aria-pressed={isFavorited}
-                          className={`h-[38px] w-[38px] rounded-xl border flex items-center justify-center transition-all active:scale-95 ${
-                            isFavorited
-                              ? 'bg-rose-500/15 border-rose-500/50 text-rose-400'
-                              : 'bg-zinc-950/70 border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-zinc-700'
-                          }`}
-                        >
-                          <HeartIcon className="w-4 h-4" filled={isFavorited} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  {progression.song && (
+                    <a
+                      href={`https://open.spotify.com/search/${encodeURIComponent(progression.song)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="no-underline text-xs text-amber-400/90 hover:text-amber-300 transition-colors leading-snug inline-block"
+                    >
+                      ♪ {progression.song}
+                      {progression.songKey ? ` (${progression.songKey})` : ''}
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -4227,10 +4175,59 @@ const DOMINANT_PROGRESSIONS = [
                   })}
                 </div>
 
-                {/* Harmonic Description */}
-                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                  {progression.description}
-                </p>
+                {/* Action Buttons: Play, Chords, Favorite */}
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onTogglePlay(progId, transposedChords)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 h-[38px] rounded-xl text-xs font-medium border transition-colors active:scale-95 ${
+                      isPlaying
+                        ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
+                        : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                    }`}
+                  >
+                    {isPlaying ? (
+                      <>
+                        <StopIcon className="w-3.5 h-3.5" />
+                        <span>Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlayIcon className="w-3.5 h-3.5" />
+                        <span>Play</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowChords((prev) => !prev)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 h-[38px] rounded-xl text-xs font-medium border transition-colors ${
+                      showChords
+                        ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
+                        : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                    }`}
+                  >
+                    <GridIcon className="w-3.5 h-3.5" />
+                    <span>Chords</span>
+                  </button>
+
+                  {onToggleFavorite && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleFavorite(progId)}
+                      aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                      aria-pressed={isFavorited}
+                      className={`h-[38px] w-[38px] rounded-xl border flex items-center justify-center transition-all active:scale-95 ${
+                        isFavorited
+                          ? 'bg-rose-500/15 border-rose-500/50 text-rose-400'
+                          : 'bg-zinc-950/70 border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-zinc-700'
+                      }`}
+                    >
+                      <HeartIcon className="w-4 h-4" filled={isFavorited} />
+                    </button>
+                  )}
+                </div>
 
                 {/* Expandable Horizontal Guitar Chord Diagrams Drawer */}
                 {showChords && (
