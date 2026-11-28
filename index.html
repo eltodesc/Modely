@@ -4550,17 +4550,6 @@ const DOMINANT_PROGRESSIONS = [
         const { favorites, toggleFavorite } = useFavorites();
         const [settingsOpen, setSettingsOpen] = useState(false);
         const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about'
-        const [audioSuspended, setAudioSuspended] = useState(false);
-
-        // Listen for AudioContext state changes (e.g. backgrounded on iOS)
-        useEffect(() => {
-          const handler = (e) => {
-            const s = e.detail && e.detail.state;
-            setAudioSuspended(s === 'suspended' || s === 'interrupted' || s === 'closed');
-          };
-          window.addEventListener('audio-state-change', handler);
-          return () => window.removeEventListener('audio-state-change', handler);
-        }, []);
 
         // Audio / Playback state
         const [playMode, setPlayMode] = useState('strum'); // 'strum' | 'arpeggio'
@@ -5016,24 +5005,6 @@ const DOMINANT_PROGRESSIONS = [
 
             {/* Main Content Container */}
             <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
-              {audioSuspended && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (audioEngine.ctx && audioEngine.ctx.state !== 'running') {
-                      audioEngine.resetContext();
-                    }
-                    const ctx = audioEngine.unlock();
-                    if (ctx && ctx.state === 'running') {
-                      setAudioSuspended(false);
-                    }
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center justify-between gap-2 hover:bg-amber-500/20 transition-colors active:scale-[0.99]"
-                >
-                  <span>Audio was paused while in the background.</span>
-                  <span className="font-semibold underline underline-offset-2 shrink-0">Tap to resume</span>
-                </button>
-              )}
               {activeTab === 'favorites' ? (
                 <>
                   {favorites.size === 0 ? (
