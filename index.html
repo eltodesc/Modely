@@ -737,6 +737,7 @@ class GuitarAudioEngine {
     this.activeTimers = [];
     this.activeNodes = new Set();
     this.unlocked = false;
+    this.needsReset = false;
     this.instrument = 'guitar';
     this._bindGestureUnlock();
   }
@@ -752,11 +753,11 @@ class GuitarAudioEngine {
 
   _bindGestureUnlock() {
     if (typeof window === 'undefined') return;
-    // Keep gesture listeners alive permanently so we can re-resume or
-    // recreate the AudioContext after it is suspended/interrupted/closed
-    // by backgrounding or an OS audio interruption.
+    // Keep gesture listeners alive permanently so we can recreate or resume
+    // the AudioContext after backgrounding (especially on iOS Chrome/WKWebView
+    // where an existing AudioContext often becomes a silent zombie after ~15s).
     const onGesture = () => {
-      if (this.ctx && this.ctx.state === 'closed') {
+      if (this.ctx && (this.needsReset || this.ctx.state === 'closed' || this.ctx.state === 'interrupted')) {
         this.resetContext();
       }
       if (!this.ctx) {
@@ -781,27 +782,45 @@ class GuitarAudioEngine {
     window.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
     window.addEventListener('click', onGesture, { capture: true, passive: true });
 
-    // When returning from background, try to resume immediately and notify UI.
-    const onReturnToForeground = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (!this.ctx) return;
-      if (this.ctx.state === 'closed') {
-        this.resetContext();
-        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: 'suspended' } }));
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (this.ctx) {
+          this.needsReset = true;
+          this.unlocked = false;
+        }
         return;
       }
-      if (this.ctx.state !== 'running') {
+      if (document.visibilityState === 'visible' && this.ctx) {
+        this.needsReset = true;
         this.unlocked = false;
+        if (this.ctx.state === 'closed') {
+          this.resetContext();
+          window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: 'suspended' } }));
+          return;
+        }
         this.ctx.resume().then(() => {
           if (this.ctx) {
             window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
           }
         }).catch(() => {});
-        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+        if (this.ctx.state !== 'running') {
+          window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+        }
       }
     };
-    document.addEventListener('visibilitychange', onReturnToForeground);
-    window.addEventListener('pageshow', onReturnToForeground);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', () => {
+      if (this.ctx) {
+        this.needsReset = true;
+        this.unlocked = false;
+      }
+    });
+    window.addEventListener('pageshow', () => {
+      if (this.ctx) {
+        this.needsReset = true;
+        this.unlocked = false;
+      }
+    });
   }
 
   resetContext() {
@@ -812,6 +831,7 @@ class GuitarAudioEngine {
     this.ctx = null;
     this.masterGain = null;
     this.unlocked = false;
+    this.needsReset = false;
     this.activeNodes.clear();
   }
 
@@ -862,6 +882,9 @@ class GuitarAudioEngine {
         if (state === 'suspended' || state === 'interrupted' || state === 'closed') {
           this.unlocked = false;
         }
+        if (state === 'interrupted' || state === 'closed') {
+          this.needsReset = true;
+        }
         if (state === 'closed') {
           this.ctx = null;
           this.masterGain = null;
@@ -871,7 +894,11 @@ class GuitarAudioEngine {
       };
     }
     if (this.ctx.state !== 'running') {
-      this.ctx.resume().catch(() => {});
+      this.ctx.resume().then(() => {
+        if (this.ctx) {
+          window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+        }
+      }).catch(() => {});
     }
     return this.ctx;
   }
