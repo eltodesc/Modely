@@ -4258,36 +4258,38 @@ const DOMINANT_PROGRESSIONS = [
       const ROMAN_NUMERALS_LOWER = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
       const MODE_ACCIDENTAL_OFFSETS = { '': 0, b: -1, bb: -2, '#': 1, '##': 2 };
 
-      function getModeDiatonicRomans(formula) {
+      function getModeDiatonicChords(formula, selectedKey) {
         const tokens = (formula || '').split(/\s*-\s*/);
-        if (tokens.length !== 7) return formula;
+        if (tokens.length < 5) return [];
         const parsed = tokens.map((tok) => {
           const m = tok.trim().match(/^(bb|b|##|#)?([1-7])$/);
           if (!m) return null;
           const acc = m[1] || '';
           const deg = Number(m[2]);
           const semi = (MAJOR_SCALE_SEMITONES[deg - 1] + (MODE_ACCIDENTAL_OFFSETS[acc] || 0) + 12) % 12;
-          return { acc, semi };
+          return { acc, deg, semi };
         });
-        if (parsed.some((p) => !p)) return formula;
+        if (parsed.some((p) => !p)) return [];
 
-        return parsed
-          .map((root, i) => {
-            const third = (parsed[(i + 2) % 7].semi - root.semi + 12) % 12;
-            const fifth = (parsed[(i + 4) % 7].semi - root.semi + 12) % 12;
-            let chord;
-            if (third === 4 && fifth === 7) chord = ROMAN_NUMERALS_UPPER[i];
-            else if (third === 3 && fifth === 7) chord = ROMAN_NUMERALS_LOWER[i];
-            else if (third === 3 && fifth === 6) chord = `${ROMAN_NUMERALS_LOWER[i]}°`;
-            else if (third === 4 && fifth === 8) chord = `${ROMAN_NUMERALS_UPPER[i]}+`;
-            else if (third === 4 && fifth === 6) chord = `${ROMAN_NUMERALS_UPPER[i]}b5`;
-            else if (third === 3 && fifth === 8) chord = `${ROMAN_NUMERALS_LOWER[i]}#5`;
-            else if (third === 2 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[i]}sus2`;
-            else if (third === 5 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[i]}sus4`;
-            else chord = third >= 4 ? ROMAN_NUMERALS_UPPER[i] : ROMAN_NUMERALS_LOWER[i];
-            return `${root.acc}${chord}`;
-          })
-          .join(' - ');
+        const n = parsed.length;
+        return parsed.map((root, i) => {
+          const third = (parsed[(i + 2) % n].semi - root.semi + 12) % 12;
+          const fifth = (parsed[(i + 4) % n].semi - root.semi + 12) % 12;
+          const degIdx = root.deg - 1;
+          let chord;
+          if (third === 4 && fifth === 7) chord = ROMAN_NUMERALS_UPPER[degIdx];
+          else if (third === 3 && fifth === 7) chord = ROMAN_NUMERALS_LOWER[degIdx];
+          else if (third === 3 && fifth === 6) chord = `${ROMAN_NUMERALS_LOWER[degIdx]}°`;
+          else if (third === 4 && fifth === 8) chord = `${ROMAN_NUMERALS_UPPER[degIdx]}+`;
+          else if (third === 4 && fifth === 6) chord = `${ROMAN_NUMERALS_UPPER[degIdx]}b5`;
+          else if (third === 3 && fifth === 8) chord = `${ROMAN_NUMERALS_LOWER[degIdx]}#5`;
+          else if (third === 2 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[degIdx]}sus2`;
+          else if (third === 5 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[degIdx]}sus4`;
+          else chord = third >= 4 ? ROMAN_NUMERALS_UPPER[degIdx] : ROMAN_NUMERALS_LOWER[degIdx];
+          const roman = `${root.acc}${chord}`;
+          const transposed = transposeRomanChord(roman, selectedKey);
+          return { roman, name: transposed.name };
+        });
       }
 
       function ModeAccordionItem({
@@ -4306,7 +4308,7 @@ const DOMINANT_PROGRESSIONS = [
         const [showFretboard, setShowFretboard] = useState(false);
         const modeTitle = formatModeTitle(selectedKey, mode.name);
         const theme = MODE_THEMES[mode.number] || MODE_THEMES[1];
-        const diatonicRomans = getModeDiatonicRomans(mode.formula);
+        const diatonicChords = getModeDiatonicChords(mode.formula, selectedKey);
 
         return (
           <div
@@ -4336,9 +4338,20 @@ const DOMINANT_PROGRESSIONS = [
                   <div className="text-sm sm:text-base font-semibold text-zinc-100 truncate">
                     {modeTitle}
                   </div>
-                  <div className="text-xs font-mono text-zinc-400 mt-0.5 truncate">
-                    {diatonicRomans}
-                  </div>
+                  {diatonicChords.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1">
+                      {diatonicChords.map((c, idx) => (
+                        <div key={idx} className="flex flex-col items-center leading-tight">
+                          <span className="text-[11px] font-mono text-zinc-400">{c.roman}</span>
+                          <span className="text-[11px] font-semibold text-zinc-200">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs font-mono text-zinc-400 mt-0.5 truncate">
+                      {mode.formula}
+                    </div>
+                  )}
                 </div>
               </div>
 
