@@ -4143,33 +4143,40 @@ const DOMINANT_PROGRESSIONS = [
             {isProgExpanded && (
               <>
                 {/* Chord Pills Grid */}
-                <div className="flex flex-wrap gap-2 mb-3">
+                <div className="flex flex-wrap items-center gap-y-2 mb-3">
                   {transposedChords.map((chordObj, idx) => {
                     const isHighlighted =
                       (isPlaying && activeChordIdx === idx) || flashedIdx === idx;
+                    const isLast = idx === transposedChords.length - 1;
                     return (
-                      <button
-                        key={`${idx}-${chordObj.roman}`}
-                        ref={(el) => { chordPillRefs.current[idx] = el; }}
-                        type="button"
-                        onClick={() => handlePillClick(chordObj, idx)}
-                        className={`flex flex-col items-center justify-center min-w-[60px] px-3 py-2 rounded-xl border transition-all active:scale-95 ${
-                          isHighlighted
-                            ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.28)] -translate-y-0.5'
-                            : 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-600 hover:bg-zinc-950/60'
-                        }`}
-                      >
-                        <span className="text-sm sm:text-base font-bold tracking-tight">
-                          {chordObj.name}
-                        </span>
-                        <span
-                          className={`text-[11px] font-mono mt-0.5 ${
-                            isHighlighted ? 'text-amber-300/90' : 'text-zinc-500'
+                      <React.Fragment key={`${idx}-${chordObj.roman}`}>
+                        <button
+                          ref={(el) => { chordPillRefs.current[idx] = el; }}
+                          type="button"
+                          onClick={() => handlePillClick(chordObj, idx)}
+                          className={`flex flex-col items-center justify-center min-w-[60px] px-3 py-2 rounded-xl border transition-all active:scale-95 ${
+                            isHighlighted
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_14px_rgba(245,158,11,0.28)] -translate-y-0.5'
+                              : 'bg-zinc-950 border-zinc-800 text-zinc-100 hover:border-zinc-600 hover:bg-zinc-950/60'
                           }`}
                         >
-                          {chordObj.roman}
-                        </span>
-                      </button>
+                          <span className="text-sm sm:text-base font-bold tracking-tight">
+                            {chordObj.name}
+                          </span>
+                          <span
+                            className={`text-[11px] font-mono mt-0.5 ${
+                              isHighlighted ? 'text-amber-300/90' : 'text-zinc-500'
+                            }`}
+                          >
+                            {chordObj.roman}
+                          </span>
+                        </button>
+                        {!isLast && (
+                          <svg className="w-4 h-4 shrink-0 text-zinc-700" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M4 8h7M8 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </div>
