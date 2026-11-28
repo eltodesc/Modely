@@ -752,16 +752,26 @@ class GuitarAudioEngine {
 
   _bindGestureUnlock() {
     if (typeof window === 'undefined') return;
-    // Keep gesture listeners alive permanently so we can re-resume the
-    // AudioContext after it is suspended by an OS audio interruption
-    // (phone call, another media app taking focus, etc.).
+    // Keep gesture listeners alive permanently so we can re-resume or
+    // recreate the AudioContext after it is suspended/interrupted/closed
+    // by backgrounding or an OS audio interruption.
     const onGesture = () => {
+      if (this.ctx && this.ctx.state === 'closed') {
+        this.resetContext();
+      }
       if (!this.ctx) {
         this.unlock();
         return;
       }
       if (this.ctx.state !== 'running') {
-        this.ctx.resume().catch(() => {});
+        this.ctx.resume().then(() => {
+          if (this.ctx) {
+            window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+          }
+        }).catch(() => {
+          this.resetContext();
+          this.unlock();
+        });
       }
       if (!this.unlocked) {
         this.unlock();
@@ -770,6 +780,39 @@ class GuitarAudioEngine {
     window.addEventListener('touchstart', onGesture, { capture: true, passive: true });
     window.addEventListener('pointerdown', onGesture, { capture: true, passive: true });
     window.addEventListener('click', onGesture, { capture: true, passive: true });
+
+    // When returning from background, try to resume immediately and notify UI.
+    const onReturnToForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!this.ctx) return;
+      if (this.ctx.state === 'closed') {
+        this.resetContext();
+        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: 'suspended' } }));
+        return;
+      }
+      if (this.ctx.state !== 'running') {
+        this.unlocked = false;
+        this.ctx.resume().then(() => {
+          if (this.ctx) {
+            window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+          }
+        }).catch(() => {});
+        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state: this.ctx.state } }));
+      }
+    };
+    document.addEventListener('visibilitychange', onReturnToForeground);
+    window.addEventListener('pageshow', onReturnToForeground);
+  }
+
+  resetContext() {
+    if (this.ctx) {
+      try { this.ctx.onstatechange = null; } catch {}
+      try { this.ctx.close().catch(() => {}); } catch {}
+    }
+    this.ctx = null;
+    this.masterGain = null;
+    this.unlocked = false;
+    this.activeNodes.clear();
   }
 
   unlock() {
@@ -795,6 +838,9 @@ class GuitarAudioEngine {
   }
 
   ensureContext() {
+    if (this.ctx && this.ctx.state === 'closed') {
+      this.resetContext();
+    }
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return null;
@@ -808,13 +854,20 @@ class GuitarAudioEngine {
       this.masterGain.gain.setValueAtTime(initPreset.masterGain, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
-      // When the OS interrupts audio (another app, phone call, etc.) the
-      // browser suspends the AudioContext. Mark it as needing re-unlock so
-      // the next user gesture automatically resumes playback.
+      // When the OS interrupts audio (backgrounding, another app, phone call, etc.)
+      // the browser suspends or closes the AudioContext. Mark it as needing re-unlock
+      // so the next user gesture automatically resumes or recreates playback.
       this.ctx.onstatechange = () => {
-        if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+        const state = this.ctx ? this.ctx.state : 'closed';
+        if (state === 'suspended' || state === 'interrupted' || state === 'closed') {
           this.unlocked = false;
         }
+        if (state === 'closed') {
+          this.ctx = null;
+          this.masterGain = null;
+          this.activeNodes.clear();
+        }
+        window.dispatchEvent(new CustomEvent('audio-state-change', { detail: { state } }));
       };
     }
     if (this.ctx.state !== 'running') {
@@ -893,8 +946,8 @@ class GuitarAudioEngine {
     const ctx = this.unlock();
     if (!ctx) return;
 
-    const schedule = () => {
-      const now = Math.max(ctx.currentTime + 0.02, 0.02);
+    const scheduleOn = (targetCtx) => {
+      const now = Math.max(targetCtx.currentTime + 0.02, 0.02);
       const offsetSec = mode === 'arpeggio' ? 0.14 : 0.035;
       const noteDuration = Math.max(1.1, beatDurationSec * 1.15);
 
@@ -905,9 +958,19 @@ class GuitarAudioEngine {
     };
 
     if (ctx.state === 'running') {
-      schedule();
+      scheduleOn(ctx);
     } else {
-      ctx.resume().then(schedule).catch(() => {});
+      ctx.resume().then(() => {
+        if (this.ctx && this.ctx.state === 'running') {
+          scheduleOn(this.ctx);
+        }
+      }).catch(() => {
+        this.resetContext();
+        const fresh = this.unlock();
+        if (fresh) {
+          fresh.resume().then(() => scheduleOn(fresh)).catch(() => {});
+        }
+      });
     }
   }
 
@@ -915,15 +978,25 @@ class GuitarAudioEngine {
     const ctx = this.unlock();
     if (!ctx) return;
 
-    const schedule = () => {
-      const now = Math.max(ctx.currentTime + 0.015, 0.015);
+    const scheduleOn = (targetCtx) => {
+      const now = Math.max(targetCtx.currentTime + 0.015, 0.015);
       this.playStringNote(midi, now, duration);
     };
 
     if (ctx.state === 'running') {
-      schedule();
+      scheduleOn(ctx);
     } else {
-      ctx.resume().then(schedule).catch(() => {});
+      ctx.resume().then(() => {
+        if (this.ctx && this.ctx.state === 'running') {
+          scheduleOn(this.ctx);
+        }
+      }).catch(() => {
+        this.resetContext();
+        const fresh = this.unlock();
+        if (fresh) {
+          fresh.resume().then(() => scheduleOn(fresh)).catch(() => {});
+        }
+      });
     }
   }
 
@@ -4452,6 +4525,17 @@ const DOMINANT_PROGRESSIONS = [
         const { favorites, toggleFavorite } = useFavorites();
         const [settingsOpen, setSettingsOpen] = useState(false);
         const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about'
+        const [audioSuspended, setAudioSuspended] = useState(false);
+
+        // Listen for AudioContext state changes (e.g. backgrounded on iOS)
+        useEffect(() => {
+          const handler = (e) => {
+            const s = e.detail && e.detail.state;
+            setAudioSuspended(s === 'suspended' || s === 'interrupted' || s === 'closed');
+          };
+          window.addEventListener('audio-state-change', handler);
+          return () => window.removeEventListener('audio-state-change', handler);
+        }, []);
 
         // Audio / Playback state
         const [playMode, setPlayMode] = useState('strum'); // 'strum' | 'arpeggio'
@@ -4907,6 +4991,24 @@ const DOMINANT_PROGRESSIONS = [
 
             {/* Main Content Container */}
             <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
+              {audioSuspended && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (audioEngine.ctx && audioEngine.ctx.state !== 'running') {
+                      audioEngine.resetContext();
+                    }
+                    const ctx = audioEngine.unlock();
+                    if (ctx && ctx.state === 'running') {
+                      setAudioSuspended(false);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-medium flex items-center justify-between gap-2 hover:bg-amber-500/20 transition-colors active:scale-[0.99]"
+                >
+                  <span>Audio was paused while in the background.</span>
+                  <span className="font-semibold underline underline-offset-2 shrink-0">Tap to resume</span>
+                </button>
+              )}
               {activeTab === 'favorites' ? (
                 <>
                   {favorites.size === 0 ? (
