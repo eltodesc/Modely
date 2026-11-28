@@ -4040,21 +4040,6 @@ const DOMINANT_PROGRESSIONS = [
                       )}
                     </button>
 
-                    {onToggleFavorite && isProgExpanded && (
-                      <button
-                        type="button"
-                        onClick={() => onToggleFavorite(progId)}
-                        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                        aria-pressed={isFavorited}
-                        className={`h-[38px] w-[38px] rounded-xl border flex items-center justify-center transition-all active:scale-95 ${
-                          isFavorited
-                            ? 'bg-rose-500/15 border-rose-500/50 text-rose-400'
-                            : 'bg-zinc-950/70 border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-zinc-700'
-                        }`}
-                      >
-                        <HeartIcon className="w-4 h-4" filled={isFavorited} />
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => setIsProgExpanded((prev) => !prev)}
@@ -4067,18 +4052,35 @@ const DOMINANT_PROGRESSIONS = [
                   </div>
 
                   {isProgExpanded && (
-                    <button
-                      type="button"
-                      onClick={() => setShowChords((prev) => !prev)}
-                      className={`sm:order-1 inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium border transition-colors min-h-[38px] ${
-                        showChords
-                          ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
-                          : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
-                      }`}
-                    >
-                      <GridIcon className="w-3.5 h-3.5" />
-                      <span>{showChords ? 'Hide Chords' : 'Chords'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowChords((prev) => !prev)}
+                        className={`sm:order-1 inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium border transition-colors min-h-[38px] ${
+                          showChords
+                            ? 'bg-zinc-800 border-amber-500/50 text-amber-300'
+                            : 'bg-zinc-950/70 border-zinc-800 text-zinc-300 hover:border-zinc-700 hover:text-zinc-100'
+                        }`}
+                      >
+                        <GridIcon className="w-3.5 h-3.5" />
+                        <span>{showChords ? 'Hide Chords' : 'Chords'}</span>
+                      </button>
+                      {onToggleFavorite && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleFavorite(progId)}
+                          aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                          aria-pressed={isFavorited}
+                          className={`h-[38px] w-[38px] rounded-xl border flex items-center justify-center transition-all active:scale-95 ${
+                            isFavorited
+                              ? 'bg-rose-500/15 border-rose-500/50 text-rose-400'
+                              : 'bg-zinc-950/70 border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <HeartIcon className="w-4 h-4" filled={isFavorited} />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
