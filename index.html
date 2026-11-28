@@ -4447,7 +4447,7 @@ const DOMINANT_PROGRESSIONS = [
         const [selectedKey, setSelectedKey] = useState('C');
         const [activeTab, setActiveTab] = useState('modal'); // 'modal' | 'dominant' | 'favorites'
         const [selectedGroupId, setSelectedGroupId] = useState('major');
-        const [expandedModeKey, setExpandedModeKey] = useState('major-1');
+        const [expandedModeKey, setExpandedModeKey] = useState(null);
         const [domCategory, setDomCategory] = useState('Blues & Funk');
         const { favorites, toggleFavorite } = useFavorites();
         const [settingsOpen, setSettingsOpen] = useState(false);
@@ -4577,7 +4577,7 @@ const DOMINANT_PROGRESSIONS = [
         const handleSelectGroup = (groupId) => {
           stopPlayback();
           setSelectedGroupId(groupId);
-          setExpandedModeKey(`${groupId}-1`);
+          setExpandedModeKey(null);
         };
 
         const handleSwitchTab = (tab) => {
