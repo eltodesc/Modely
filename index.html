@@ -4098,31 +4098,30 @@ const DOMINANT_PROGRESSIONS = [
                   </span>
                 </button>
               ) : (
-                <div className="space-y-1.5">
-                  <div className="flex items-start justify-between gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setIsProgExpanded(false)}
-                      aria-expanded={true}
-                      className="text-left flex-1 min-w-0 group"
-                    >
-                      <h4 className="text-sm sm:text-base font-semibold text-zinc-100 group-hover:text-amber-300 transition-colors leading-snug">
-                        {progression.title}
-                      </h4>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsProgExpanded(false)}
-                      aria-expanded={true}
-                      aria-label="Collapse progression"
-                      className="shrink-0 p-1 text-zinc-400 hover:text-zinc-100 flex items-center justify-center transition-colors"
-                    >
-                      <ChevronIcon open={true} className="w-5 h-5" />
-                    </button>
-                  </div>
+                <div className="relative pr-8">
+                  <button
+                    type="button"
+                    onClick={() => setIsProgExpanded(false)}
+                    aria-expanded={true}
+                    aria-label="Collapse progression"
+                    className="absolute top-0 right-0 p-0.5 text-zinc-400 hover:text-zinc-100 transition-colors"
+                  >
+                    <ChevronIcon open={true} className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsProgExpanded(false)}
+                    aria-expanded={true}
+                    className="text-left w-full group"
+                  >
+                    <h4 className="text-sm sm:text-base font-semibold text-zinc-100 group-hover:text-amber-300 transition-colors leading-snug">
+                      {progression.title}
+                    </h4>
+                  </button>
 
                   {/* Harmonic Description */}
-                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed mt-1">
                     {progression.description}
                   </p>
 
@@ -4131,7 +4130,7 @@ const DOMINANT_PROGRESSIONS = [
                       href={`https://open.spotify.com/search/${encodeURIComponent(progression.song)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="no-underline text-xs text-amber-400/90 hover:text-amber-300 transition-colors leading-snug inline-block"
+                      className="no-underline text-xs text-amber-400/90 hover:text-amber-300 transition-colors leading-snug inline-block mt-1"
                     >
                       ♪ {progression.song}
                       {progression.songKey ? ` (${progression.songKey})` : ''}
@@ -4605,7 +4604,7 @@ const DOMINANT_PROGRESSIONS = [
         const [domCategory, setDomCategory] = useState('Blues & Funk');
         const { favorites, toggleFavorite } = useFavorites();
         const [settingsOpen, setSettingsOpen] = useState(false);
-        const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about'
+        const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about' | 'why-modes'
 
         // Audio / Playback state
         const [playMode, setPlayMode] = useState('strum'); // 'strum' | 'arpeggio'
@@ -4791,7 +4790,7 @@ const DOMINANT_PROGRESSIONS = [
                       />
                       <div
                         role="dialog"
-                        aria-label={settingsView === 'about' ? 'About Modaly' : 'Settings'}
+                        aria-label={settingsView === 'about' ? 'About Modaly' : settingsView === 'why-modes' ? 'Why Modes?' : 'Settings'}
                         className="absolute right-0 top-12 z-50 w-72 sm:w-80 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl p-4 space-y-4"
                       >
                         {settingsView === 'playback' ? (
@@ -4918,8 +4917,16 @@ const DOMINANT_PROGRESSIONS = [
                               </p>
                             </div>
 
-                            {/* About Menu Item */}
-                            <div className="pt-2 border-t border-zinc-800">
+                            {/* About + Why Modes Menu Items */}
+                            <div className="pt-2 border-t border-zinc-800 space-y-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setSettingsView('why-modes')}
+                                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/70 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-200 transition-colors"
+                              >
+                                <span>Why Modes?</span>
+                                <span className="text-zinc-400 text-sm leading-none">›</span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setSettingsView('about')}
@@ -4928,6 +4935,74 @@ const DOMINANT_PROGRESSIONS = [
                                 <span>About Modaly</span>
                                 <span className="text-zinc-400 text-sm leading-none">›</span>
                               </button>
+                            </div>
+                          </>
+                        ) : settingsView === 'why-modes' ? (
+                          <>
+                            <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setSettingsView('playback')}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400 hover:text-amber-300 transition-colors"
+                              >
+                                <span>‹</span>
+                                <span>Back</span>
+                              </button>
+                              <h2 className="text-sm font-semibold text-zinc-100">Why Modes?</h2>
+                              <button
+                                type="button"
+                                onClick={() => setSettingsOpen(false)}
+                                aria-label="Close settings"
+                                className="h-8 w-8 rounded-lg bg-zinc-800 text-zinc-400 hover:text-zinc-100 flex items-center justify-center"
+                              >
+                                <CloseIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            <div className="space-y-3 text-xs text-zinc-300 leading-relaxed overflow-y-auto max-h-[70vh]">
+                              <p>
+                                A <span className="text-amber-400 font-semibold">mode</span> is simply the major scale started from a different note. The major scale has 7 notes — start on each one and you get a different mode, each with its own unique sound and emotional colour.
+                              </p>
+
+                              <div className="rounded-xl bg-zinc-950/70 border border-zinc-800 p-3 space-y-1.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">The 7 modes of C Major</p>
+                                {[
+                                  ['I — Ionian', 'C D E F G A B', 'Happy, resolved. Your everyday major scale.'],
+                                  ['II — Dorian', 'D E F G A B C', 'Soulful minor. Think Santana, funk, minor jazz.'],
+                                  ['III — Phrygian', 'E F G A B C D', 'Dark, tense. Spanish flamenco and metal.'],
+                                  ['IV — Lydian', 'F G A B C D E', 'Dreamy, floating. That lifted, cinematic feeling.'],
+                                  ['V — Mixolydian', 'G A B C D E F', 'Bluesy major. Rock, country, blues.'],
+                                  ['VI — Aeolian', 'A B C D E F G', 'Sad natural minor. Most pop ballads.'],
+                                  ['VII — Locrian', 'B C D E F G A', 'Unstable, dissonant. Rarely used alone.'],
+                                ].map(([name, notes, vibe]) => (
+                                  <div key={name} className="border-t border-zinc-800/80 pt-1.5 first:border-0 first:pt-0">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                      <span className="font-semibold text-zinc-100 text-[11px]">{name}</span>
+                                      <span className="font-mono text-[10px] text-zinc-500 shrink-0">{notes}</span>
+                                    </div>
+                                    <p className="text-[11px] text-zinc-400 mt-0.5">{vibe}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-3 space-y-1.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-400">The key insight</p>
+                                <p>Same notes — different home base. When the music resolves to D in C major, you're in Dorian. When it resolves to A, you're in Aeolian. The <span className="text-amber-400 font-semibold">tonal centre</span> is everything.</p>
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">How to think about them as a player</p>
+                                <ul className="space-y-2 text-zinc-400">
+                                  <li className="flex gap-2"><span className="text-amber-400 shrink-0 font-bold">1.</span><span><span className="text-zinc-200 font-semibold">Start with the vibe, not the theory.</span> Dorian feels funky and soulful. Phrygian feels tense and exotic. Trust your ear first.</span></li>
+                                  <li className="flex gap-2"><span className="text-amber-400 shrink-0 font-bold">2.</span><span><span className="text-zinc-200 font-semibold">Learn one chord progression per mode.</span> Play i–IV in Dorian (e.g. Am–D) until it feels natural. That groove <em>is</em> the mode.</span></li>
+                                  <li className="flex gap-2"><span className="text-amber-400 shrink-0 font-bold">3.</span><span><span className="text-zinc-200 font-semibold">Solo over the matching progression.</span> In Am Dorian, your A minor pentatonic works — but add the F♯ (the natural 6th) and you unlock the Dorian colour.</span></li>
+                                  <li className="flex gap-2"><span className="text-amber-400 shrink-0 font-bold">4.</span><span><span className="text-zinc-200 font-semibold">One note makes the difference.</span> Dorian vs Aeolian: just one note — the 6th. That tiny change shifts the whole mood. Listen for it.</span></li>
+                                </ul>
+                              </div>
+
+                              <p className="text-[11px] text-zinc-500 leading-snug border-t border-zinc-800 pt-2">
+                                Modaly's Modal Library organises all of this for you — tap any mode to explore its progressions, diatonic chords, and soloing fretboard in your chosen key.
+                              </p>
                             </div>
                           </>
                         ) : (
