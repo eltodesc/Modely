@@ -3439,18 +3439,127 @@ const DOMINANT_PROGRESSIONS = [
         const height = topPad + fretGap * 4 + 14;
 
         return (
-          <button
-            type="button"
-            onClick={() => onPlay(voicing.midiNotes)}
-            title={`Play ${chord.name}`}
-            className={`shrink-0 flex flex-col items-center rounded-xl border p-2.5 transition-all active:scale-95 ${
+          <div
+            className={`shrink-0 flex flex-col items-center rounded-xl border p-2.5 transition-all ${
               isActive
                 ? 'bg-amber-500/10 border-amber-500/60 shadow-[0_0_12px_rgba(245,158,11,0.18)]'
                 : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-700'
             }`}
           >
-            {/* Header: prev arrow · chord name · next arrow */}
-            <div className="flex items-center w-full justify-between gap-0.5 mb-1">
+            <button
+              type="button"
+              onClick={() => onPlay(voicing.midiNotes)}
+              title={`Play ${chord.name}`}
+              className="flex flex-col items-center"
+            >
+              <span className="text-xs font-bold text-zinc-100 tracking-tight">{chord.name}</span>
+              <span className="text-[10px] font-mono text-zinc-500">{chord.roman}</span>
+              <svg
+                width={width}
+                height={height}
+                viewBox={`0 0 ${width} ${height}`}
+                className="overflow-visible select-none"
+                role="img"
+                aria-label={`${chord.name} guitar chord diagram`}
+              >
+                {/* Fret position label when shifted up the neck */}
+                {baseFret > 1 && (
+                  <text
+                    x={leftPad - 5}
+                    y={topPad + fretGap * 0.65}
+                    textAnchor="end"
+                    className="fill-amber-400 font-mono font-semibold"
+                    style={{ fontSize: '10px' }}
+                  >
+                    {baseFret}fr
+                  </text>
+                )}
+
+                {/* Nut or top fret line */}
+                <line
+                  x1={leftPad}
+                  y1={topPad}
+                  x2={leftPad + stringGap * 5}
+                  y2={topPad}
+                  stroke={baseFret === 1 ? '#e4e4e7' : '#52525b'}
+                  strokeWidth={baseFret === 1 ? 3.5 : 1.5}
+                  strokeLinecap="round"
+                />
+
+                {/* 4 Horizontal Fret Lines */}
+                {[1, 2, 3, 4].map((fretIdx) => {
+                  const y = topPad + fretIdx * fretGap;
+                  return (
+                    <line
+                      key={fretIdx}
+                      x1={leftPad}
+                      y1={y}
+                      x2={leftPad + stringGap * 5}
+                      y2={y}
+                      stroke="#3f3f46"
+                      strokeWidth="1.2"
+                    />
+                  );
+                })}
+
+                {/* 6 Vertical String Lines */}
+                {[0, 1, 2, 3, 4, 5].map((strIdx) => {
+                  const x = leftPad + strIdx * stringGap;
+                  return (
+                    <line
+                      key={strIdx}
+                      x1={x}
+                      y1={topPad}
+                      x2={x}
+                      y2={topPad + fretGap * 4}
+                      stroke="#52525b"
+                      strokeWidth={strIdx < 2 ? '1.6' : '1.1'}
+                    />
+                  );
+                })}
+
+                {/* Open / Muted Markers & Finger Dots */}
+                {frets.map((fret, strIdx) => {
+                  const x = leftPad + strIdx * stringGap;
+                  if (fret === -1) {
+                    return (
+                      <g key={strIdx} stroke="#71717a" strokeWidth="1.6" strokeLinecap="round">
+                        <line x1={x - 3.5} y1={topPad - 13} x2={x + 3.5} y2={topPad - 6} />
+                        <line x1={x + 3.5} y1={topPad - 13} x2={x - 3.5} y2={topPad - 6} />
+                      </g>
+                    );
+                  }
+                  if (fret === 0) {
+                    return (
+                      <circle
+                        key={strIdx}
+                        cx={x}
+                        cy={topPad - 9.5}
+                        r="3.8"
+                        fill="none"
+                        stroke="#a1a1aa"
+                        strokeWidth="1.6"
+                      />
+                    );
+                  }
+                  const relFret = fret - baseFret + 1;
+                  if (relFret < 1 || relFret > 4) return null;
+                  const y = topPad + (relFret - 0.5) * fretGap;
+                  return (
+                    <circle
+                      key={strIdx}
+                      cx={x}
+                      cy={y}
+                      r="5.2"
+                      fill="#f59e0b"
+                      stroke="#18181b"
+                      strokeWidth="1.2"
+                    />
+                  );
+                })}
+              </svg>
+            </button>
+            <div className="flex items-center justify-between w-full gap-1 mt-1">
               <button
                 type="button"
                 onClick={(e) => goTo(safeIdx - 1, e)}
@@ -3460,10 +3569,25 @@ const DOMINANT_PROGRESSIONS = [
                   voicings.length > 1 ? 'text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 active:scale-95' : 'text-zinc-700 cursor-default'
                 }`}
               >&#8249;</button>
-              <div className="flex items-baseline gap-1 min-w-0">
-                <span className="text-xs font-bold text-zinc-100 tracking-tight">{chord.name}</span>
-                <span className="text-[10px] font-mono text-zinc-500">{chord.roman}</span>
-              </div>
+              {voicings.length > 1 && (
+                <div className="flex items-center gap-1" role="tablist" aria-label="Voicing selector">
+                  {voicings.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      role="tab"
+                      aria-selected={i === safeIdx}
+                      aria-label={`Voicing ${i + 1}`}
+                      onClick={(e) => { e.stopPropagation(); onVoicingChange(i); }}
+                      className={`rounded-full transition-all ${
+                        i === safeIdx
+                          ? 'w-3.5 h-2 bg-amber-400'
+                          : 'w-2 h-2 bg-zinc-600 hover:bg-zinc-500'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={(e) => goTo(safeIdx + 1, e)}
@@ -3474,132 +3598,7 @@ const DOMINANT_PROGRESSIONS = [
                 }`}
               >&#8250;</button>
             </div>
-
-            <svg
-              width={width}
-              height={height}
-              viewBox={`0 0 ${width} ${height}`}
-              className="overflow-visible select-none"
-              role="img"
-              aria-label={`${chord.name} guitar chord diagram`}
-            >
-              {/* Fret position label when shifted up the neck */}
-              {baseFret > 1 && (
-                <text
-                  x={leftPad - 5}
-                  y={topPad + fretGap * 0.65}
-                  textAnchor="end"
-                  className="fill-amber-400 font-mono font-semibold"
-                  style={{ fontSize: '10px' }}
-                >
-                  {baseFret}fr
-                </text>
-              )}
-
-              {/* Nut or top fret line */}
-              <line
-                x1={leftPad}
-                y1={topPad}
-                x2={leftPad + stringGap * 5}
-                y2={topPad}
-                stroke={baseFret === 1 ? '#e4e4e7' : '#52525b'}
-                strokeWidth={baseFret === 1 ? 3.5 : 1.5}
-                strokeLinecap="round"
-              />
-
-              {/* 4 Horizontal Fret Lines */}
-              {[1, 2, 3, 4].map((fretIdx) => {
-                const y = topPad + fretIdx * fretGap;
-                return (
-                  <line
-                    key={fretIdx}
-                    x1={leftPad}
-                    y1={y}
-                    x2={leftPad + stringGap * 5}
-                    y2={y}
-                    stroke="#3f3f46"
-                    strokeWidth="1.2"
-                  />
-                );
-              })}
-
-              {/* 6 Vertical String Lines */}
-              {[0, 1, 2, 3, 4, 5].map((strIdx) => {
-                const x = leftPad + strIdx * stringGap;
-                return (
-                  <line
-                    key={strIdx}
-                    x1={x}
-                    y1={topPad}
-                    x2={x}
-                    y2={topPad + fretGap * 4}
-                    stroke="#52525b"
-                    strokeWidth={strIdx < 2 ? '1.6' : '1.1'}
-                  />
-                );
-              })}
-
-              {/* Open / Muted Markers & Finger Dots */}
-              {frets.map((fret, strIdx) => {
-                const x = leftPad + strIdx * stringGap;
-                if (fret === -1) {
-                  return (
-                    <g key={strIdx} stroke="#71717a" strokeWidth="1.6" strokeLinecap="round">
-                      <line x1={x - 3.5} y1={topPad - 13} x2={x + 3.5} y2={topPad - 6} />
-                      <line x1={x + 3.5} y1={topPad - 13} x2={x - 3.5} y2={topPad - 6} />
-                    </g>
-                  );
-                }
-                if (fret === 0) {
-                  return (
-                    <circle
-                      key={strIdx}
-                      cx={x}
-                      cy={topPad - 9.5}
-                      r="3.8"
-                      fill="none"
-                      stroke="#a1a1aa"
-                      strokeWidth="1.6"
-                    />
-                  );
-                }
-                const relFret = fret - baseFret + 1;
-                if (relFret < 1 || relFret > 4) return null;
-                const y = topPad + (relFret - 0.5) * fretGap;
-                return (
-                  <circle
-                    key={strIdx}
-                    cx={x}
-                    cy={y}
-                    r="5.2"
-                    fill="#f59e0b"
-                    stroke="#18181b"
-                    strokeWidth="1.2"
-                  />
-                );
-              })}
-            </svg>
-            {/* Voicing dot indicators */}
-            {voicings.length > 1 && (
-              <div className="flex items-center gap-1 mt-2" role="tablist" aria-label="Voicing selector">
-                {voicings.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === safeIdx}
-                    aria-label={`Voicing ${i + 1}`}
-                    onClick={(e) => { e.stopPropagation(); onVoicingChange(i); }}
-                    className={`rounded-full transition-all ${
-                      i === safeIdx
-                        ? 'w-3.5 h-2 bg-amber-400'
-                        : 'w-2 h-2 bg-zinc-600 hover:bg-zinc-500'
-                    }`}
-                  />
-                ))}
-              </div>
-            )}
-          </button>
+          </div>
         );
       }
 
