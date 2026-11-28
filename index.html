@@ -548,6 +548,64 @@ function normalizeQuality(quality) {
   return '';
 }
 
+/**
+ * Build a finalized voicing object (frets, baseFret, midiNotes, name) from a raw fret array.
+ */
+function buildVoicing(frets, rootNote, rawQuality) {
+  const fretted = frets.filter((f) => f > 0);
+  const maxFret = fretted.length ? Math.max(...fretted) : 0;
+  const minFret = fretted.length ? Math.min(...fretted) : 1;
+  const baseFret = maxFret <= 4 ? 1 : minFret;
+  const midiNotes = [];
+  frets.forEach((fret, stringIdx) => {
+    if (fret >= 0) midiNotes.push(OPEN_STRING_MIDI[stringIdx] + fret);
+  });
+  return { frets, baseFret, midiNotes, name: `${rootNote}${rawQuality}` };
+}
+
+/**
+ * Return up to 3 distinct voicings for a chord: open position (if available),
+ * then all movable-template shapes in ascending fret order.
+ */
+function getAllChordVoicings(rootNote, rawQuality) {
+  const pitch = NOTE_TO_PITCH[rootNote] ?? 0;
+  const quality = normalizeQuality(rawQuality || '');
+  const voicings = [];
+
+  // 1. Open voicing first (if this root has one)
+  const naturalKey = PITCH_TO_NATURAL_OPEN_KEY[pitch];
+  if (naturalKey && OPEN_VOICINGS[`${naturalKey}:${quality}`]) {
+    voicings.push(buildVoicing(OPEN_VOICINGS[`${naturalKey}:${quality}`], rootNote, rawQuality));
+  }
+
+  // 2. All movable template shapes, in ascending max-fret order
+  const templates = MOVABLE_TEMPLATES[quality] || MOVABLE_TEMPLATES[''];
+  const shaped = [];
+  for (const tmpl of templates) {
+    let r = (pitch - tmpl.basePitch + 12) % 12;
+    if (r < tmpl.minR) r += 12;
+    const shape = tmpl.offsets.map((off) => (off === null ? -1 : r + off));
+    if (shape.some((f) => f < -1)) continue;
+    const fretted = shape.filter((f) => f > 0);
+    if (!fretted.length) continue;
+    const maxFret = Math.max(...fretted);
+    // Skip if already represented by the open voicing above
+    const isDuplicate = voicings.some((v) => v.frets.join() === shape.join());
+    if (!isDuplicate) shaped.push({ shape, maxFret });
+  }
+  shaped.sort((a, b) => a.maxFret - b.maxFret);
+  for (const { shape } of shaped) {
+    voicings.push(buildVoicing(shape, rootNote, rawQuality));
+  }
+
+  // Always have at least one voicing
+  if (voicings.length === 0) {
+    voicings.push(getChordVoicing(rootNote, rawQuality));
+  }
+
+  return voicings;
+}
+
 function getChordVoicing(rootNote, rawQuality) {
   const pitch = NOTE_TO_PITCH[rootNote] ?? 0;
   const quality = normalizeQuality(rawQuality || '');
@@ -3252,12 +3310,20 @@ const DOMINANT_PROGRESSIONS = [
       // 6. SVG GUITAR CHORD VOICING DIAGRAM (6 strings, 4 frets)
       // =========================================================================
       function ChordDiagram({ chord, isActive, onPlay }) {
-        const voicing = useMemo(
-          () => getChordVoicing(chord.root, chord.quality),
+        const voicings = useMemo(
+          () => getAllChordVoicings(chord.root, chord.quality),
           [chord.root, chord.quality]
         );
-
+        const [voicingIdx, setVoicingIdx] = useState(0);
+        const safeIdx = Math.min(voicingIdx, voicings.length - 1);
+        const voicing = voicings[safeIdx];
         const { frets, baseFret } = voicing;
+
+        const goTo = (idx, e) => {
+          e.stopPropagation();
+          setVoicingIdx(((idx % voicings.length) + voicings.length) % voicings.length);
+        };
+
         // SVG geometry
         const leftPad = 24;
         const topPad = 22;
@@ -3277,9 +3343,30 @@ const DOMINANT_PROGRESSIONS = [
                 : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-700'
             }`}
           >
-            <div className="flex items-baseline gap-1.5 mb-1">
-              <span className="text-xs font-bold text-zinc-100 tracking-tight">{chord.name}</span>
-              <span className="text-[10px] font-mono text-zinc-500">{chord.roman}</span>
+            {/* Header: prev arrow · chord name · next arrow */}
+            <div className="flex items-center w-full justify-between gap-0.5 mb-1">
+              <button
+                type="button"
+                onClick={(e) => goTo(safeIdx - 1, e)}
+                aria-label="Previous voicing"
+                disabled={voicings.length <= 1}
+                className={`w-6 h-6 flex items-center justify-center rounded-md text-sm font-bold leading-none transition-colors ${
+                  voicings.length > 1 ? 'text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 active:scale-95' : 'text-zinc-700 cursor-default'
+                }`}
+              >&#8249;</button>
+              <div className="flex items-baseline gap-1 min-w-0">
+                <span className="text-xs font-bold text-zinc-100 tracking-tight">{chord.name}</span>
+                <span className="text-[10px] font-mono text-zinc-500">{chord.roman}</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => goTo(safeIdx + 1, e)}
+                aria-label="Next voicing"
+                disabled={voicings.length <= 1}
+                className={`w-6 h-6 flex items-center justify-center rounded-md text-sm font-bold leading-none transition-colors ${
+                  voicings.length > 1 ? 'text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 active:scale-95' : 'text-zinc-700 cursor-default'
+                }`}
+              >&#8250;</button>
             </div>
 
             <svg
@@ -3386,6 +3473,26 @@ const DOMINANT_PROGRESSIONS = [
                 );
               })}
             </svg>
+            {/* Voicing dot indicators */}
+            {voicings.length > 1 && (
+              <div className="flex items-center gap-1 mt-2" role="tablist" aria-label="Voicing selector">
+                {voicings.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === safeIdx}
+                    aria-label={`Voicing ${i + 1}`}
+                    onClick={(e) => { e.stopPropagation(); setVoicingIdx(i); }}
+                    className={`rounded-full transition-all ${
+                      i === safeIdx
+                        ? 'w-3.5 h-2 bg-amber-400'
+                        : 'w-2 h-2 bg-zinc-600 hover:bg-zinc-500'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
           </button>
         );
       }
