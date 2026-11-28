@@ -3288,6 +3288,15 @@ const DOMINANT_PROGRESSIONS = [
         );
       }
 
+      function HeartIcon({ className = 'w-4 h-4', filled = false }) {
+        return (
+          <svg className={className} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        );
+      }
+
       function CloseIcon({ className = 'w-4 h-4' }) {
         return (
           <svg
@@ -3894,6 +3903,8 @@ const DOMINANT_PROGRESSIONS = [
         activeChordIdx,
         onTogglePlay,
         onPlaySingleChord,
+        isFavorited = false,
+        onToggleFavorite = null,
         defaultExpanded = false,
         modeTheme = null,
       }) {
@@ -4029,6 +4040,21 @@ const DOMINANT_PROGRESSIONS = [
                       )}
                     </button>
 
+                    {onToggleFavorite && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleFavorite(progId)}
+                        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                        aria-pressed={isFavorited}
+                        className={`h-[38px] w-[38px] rounded-xl border flex items-center justify-center transition-all active:scale-95 ${
+                          isFavorited
+                            ? 'bg-rose-500/15 border-rose-500/50 text-rose-400'
+                            : 'bg-zinc-950/70 border-zinc-800 text-zinc-500 hover:text-rose-400 hover:border-zinc-700'
+                        }`}
+                      >
+                        <HeartIcon className="w-4 h-4" filled={isFavorited} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setIsProgExpanded((prev) => !prev)}
@@ -4138,6 +4164,8 @@ const DOMINANT_PROGRESSIONS = [
         activeChordIdx,
         onTogglePlay,
         onPlaySingleChord,
+        favorites,
+        onToggleFavorite,
       }) {
         const [showFretboard, setShowFretboard] = useState(false);
         const modeTitle = formatModeTitle(selectedKey, mode.name);
@@ -4242,6 +4270,8 @@ const DOMINANT_PROGRESSIONS = [
                         activeChordIdx={activeChordIdx}
                         onTogglePlay={onTogglePlay}
                         onPlaySingleChord={onPlaySingleChord}
+                        isFavorited={favorites && favorites.has(progId)}
+                        onToggleFavorite={onToggleFavorite}
                         modeTheme={theme}
                       />
                     );
@@ -4358,14 +4388,66 @@ const DOMINANT_PROGRESSIONS = [
       }
 
       // =========================================================================
+      // 9. FAVORITES HOOK + PROGRESSION LOOKUP MAP
+      // =========================================================================
+      // Build a flat id -> { progression, source } map once at load time
+      const ALL_PROGRESSIONS_MAP = (() => {
+        const map = {};
+        SCALE_GROUPS.forEach((g) => {
+          g.modes.forEach((mode) => {
+            mode.progressions.forEach((prog, pIdx) => {
+              const id = `${g.id}-${mode.number}-${pIdx}`;
+              map[id] = { progression: prog, source: `${g.name} \u2014 ${mode.name}` };
+            });
+          });
+        });
+        DOMINANT_PROGRESSIONS.forEach((prog) => {
+          const id = `dom-${prog.id}`;
+          map[id] = { progression: prog, source: prog.category };
+        });
+        return map;
+      })();
+
+      const FAVORITES_KEY = 'modaly-favorites-v1';
+
+      function useFavorites() {
+        const [favorites, setFavorites] = useState(() => {
+          try {
+            const raw = localStorage.getItem(FAVORITES_KEY);
+            return raw ? new Set(JSON.parse(raw)) : new Set();
+          } catch {
+            return new Set();
+          }
+        });
+
+        const toggleFavorite = useCallback((progId) => {
+          setFavorites((prev) => {
+            const next = new Set(prev);
+            if (next.has(progId)) {
+              next.delete(progId);
+            } else {
+              next.add(progId);
+            }
+            try {
+              localStorage.setItem(FAVORITES_KEY, JSON.stringify([...next]));
+            } catch {}
+            return next;
+          });
+        }, []);
+
+        return { favorites, toggleFavorite };
+      }
+
+      // =========================================================================
       // 9. MAIN APP
       // =========================================================================
       function App() {
         const [selectedKey, setSelectedKey] = useState('C');
-        const [activeTab, setActiveTab] = useState('modal'); // 'modal' | 'dominant'
+        const [activeTab, setActiveTab] = useState('modal'); // 'modal' | 'dominant' | 'favorites'
         const [selectedGroupId, setSelectedGroupId] = useState('major');
         const [expandedModeKey, setExpandedModeKey] = useState('major-1');
         const [domCategory, setDomCategory] = useState('Blues & Funk');
+        const { favorites, toggleFavorite } = useFavorites();
         const [settingsOpen, setSettingsOpen] = useState(false);
         const [settingsView, setSettingsView] = useState('playback'); // 'playback' | 'about'
 
@@ -4774,8 +4856,8 @@ const DOMINANT_PROGRESSIONS = [
                   })}
                 </div>
 
-                {/* Two Main Navigation Tabs */}
-                <nav className="grid grid-cols-2 gap-2 pt-0.5" aria-label="Main sections">
+                {/* Three Main Navigation Tabs */}
+                <nav className="grid grid-cols-3 gap-2 pt-0.5" aria-label="Main sections">
                   <button
                     type="button"
                     onClick={() => handleSwitchTab('modal')}
@@ -4798,13 +4880,66 @@ const DOMINANT_PROGRESSIONS = [
                   >
                     Styles &amp; Grooves
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSwitchTab('favorites')}
+                    className={`h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all border relative ${
+                      activeTab === 'favorites'
+                        ? 'bg-zinc-800 text-rose-400 border-rose-500/50'
+                        : 'bg-zinc-900/50 text-zinc-400 border-zinc-800/80 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5 justify-center">
+                      <HeartIcon className="w-3.5 h-3.5" filled={activeTab === 'favorites'} />
+                      Favorites
+                      {favorites.size > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                          activeTab === 'favorites' ? 'bg-rose-500/25 text-rose-300' : 'bg-zinc-700 text-zinc-300'
+                        }`}>{favorites.size}</span>
+                      )}
+                    </span>
+                  </button>
                 </nav>
               </div>
             </header>
 
             {/* Main Content Container */}
             <main className="max-w-2xl mx-auto px-3 sm:px-4 pt-4 space-y-4">
-              {activeTab === 'modal' ? (
+              {activeTab === 'favorites' ? (
+                <>
+                  {favorites.size === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+                      <HeartIcon className="w-10 h-10 text-zinc-700" />
+                      <p className="text-sm font-semibold text-zinc-400">No favorites yet</p>
+                      <p className="text-xs text-zinc-600 max-w-xs leading-relaxed">Tap the ♥ on any progression to save it here for quick access.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {[...favorites].map((favId) => {
+                        const entry = ALL_PROGRESSIONS_MAP[favId];
+                        if (!entry) return null;
+                        return (
+                          <div key={favId}>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1.5 px-1">{entry.source}</p>
+                            <ProgressionCard
+                              progression={entry.progression}
+                              progId={favId}
+                              selectedKey={selectedKey}
+                              isPlaying={playingProgId === favId}
+                              activeChordIdx={activeChordIdx}
+                              onTogglePlay={handleTogglePlay}
+                              onPlaySingleChord={playSingleChord}
+                              isFavorited={true}
+                              onToggleFavorite={toggleFavorite}
+                              defaultExpanded={true}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : activeTab === 'modal' ? (
                 <>
                   {/* Swipeable / Scrollable Scale Group Choice Buttons */}
                   <HorizontalPillStrip
@@ -4842,6 +4977,8 @@ const DOMINANT_PROGRESSIONS = [
                           activeChordIdx={activeChordIdx}
                           onTogglePlay={handleTogglePlay}
                           onPlaySingleChord={playSingleChord}
+                          favorites={favorites}
+                          onToggleFavorite={toggleFavorite}
                         />
                       );
                     })}
@@ -4874,6 +5011,8 @@ const DOMINANT_PROGRESSIONS = [
                           activeChordIdx={activeChordIdx}
                           onTogglePlay={handleTogglePlay}
                           onPlaySingleChord={playSingleChord}
+                          isFavorited={favorites.has(progId)}
+                          onToggleFavorite={toggleFavorite}
                         />
                       );
                     })}
