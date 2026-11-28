@@ -4400,8 +4400,8 @@ const DOMINANT_PROGRESSIONS = [
                   )}
                 </div>
 
-                {/* Nested Mode Progressions with Color Accent Rail */}
-                <div className={`space-y-2.5 ${theme.rail}`}>
+                {/* Mode Progressions */}
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className={`text-[11px] font-semibold uppercase tracking-wider ${theme.eyebrow}`}>
                       {modeTitle} Examples ({mode.progressions.length})
@@ -5100,13 +5100,10 @@ const DOMINANT_PROGRESSIONS = [
                   />
 
                   {/* Active Scale Group Heading */}
-                  <div className="flex items-center justify-between px-1">
+                  <div className="px-1">
                     <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                      {currentGroup.name} Modes ({currentGroup.modes.length})
+                      {currentGroup.name} Modes
                     </h2>
-                    <span className="text-[11px] text-zinc-500">
-                      Tap a mode to explore progressions
-                    </span>
                   </div>
 
                   {/* Numbered Modes Accordion List */}
