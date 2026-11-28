@@ -4254,6 +4254,42 @@ const DOMINANT_PROGRESSIONS = [
       // =========================================================================
       // 8. MODE ACCORDION ITEM
       // =========================================================================
+      const ROMAN_NUMERALS_UPPER = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+      const ROMAN_NUMERALS_LOWER = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
+      const MODE_ACCIDENTAL_OFFSETS = { '': 0, b: -1, bb: -2, '#': 1, '##': 2 };
+
+      function getModeDiatonicRomans(formula) {
+        const tokens = (formula || '').split(/\s*-\s*/);
+        if (tokens.length !== 7) return formula;
+        const parsed = tokens.map((tok) => {
+          const m = tok.trim().match(/^(bb|b|##|#)?([1-7])$/);
+          if (!m) return null;
+          const acc = m[1] || '';
+          const deg = Number(m[2]);
+          const semi = (MAJOR_SCALE_SEMITONES[deg - 1] + (MODE_ACCIDENTAL_OFFSETS[acc] || 0) + 12) % 12;
+          return { acc, semi };
+        });
+        if (parsed.some((p) => !p)) return formula;
+
+        return parsed
+          .map((root, i) => {
+            const third = (parsed[(i + 2) % 7].semi - root.semi + 12) % 12;
+            const fifth = (parsed[(i + 4) % 7].semi - root.semi + 12) % 12;
+            let chord;
+            if (third === 4 && fifth === 7) chord = ROMAN_NUMERALS_UPPER[i];
+            else if (third === 3 && fifth === 7) chord = ROMAN_NUMERALS_LOWER[i];
+            else if (third === 3 && fifth === 6) chord = `${ROMAN_NUMERALS_LOWER[i]}°`;
+            else if (third === 4 && fifth === 8) chord = `${ROMAN_NUMERALS_UPPER[i]}+`;
+            else if (third === 4 && fifth === 6) chord = `${ROMAN_NUMERALS_UPPER[i]}b5`;
+            else if (third === 3 && fifth === 8) chord = `${ROMAN_NUMERALS_LOWER[i]}#5`;
+            else if (third === 2 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[i]}sus2`;
+            else if (third === 5 && fifth === 7) chord = `${ROMAN_NUMERALS_UPPER[i]}sus4`;
+            else chord = third >= 4 ? ROMAN_NUMERALS_UPPER[i] : ROMAN_NUMERALS_LOWER[i];
+            return `${root.acc}${chord}`;
+          })
+          .join(' - ');
+      }
+
       function ModeAccordionItem({
         mode,
         groupId,
@@ -4270,6 +4306,7 @@ const DOMINANT_PROGRESSIONS = [
         const [showFretboard, setShowFretboard] = useState(false);
         const modeTitle = formatModeTitle(selectedKey, mode.name);
         const theme = MODE_THEMES[mode.number] || MODE_THEMES[1];
+        const diatonicRomans = getModeDiatonicRomans(mode.formula);
 
         return (
           <div
@@ -4300,7 +4337,7 @@ const DOMINANT_PROGRESSIONS = [
                     {modeTitle}
                   </div>
                   <div className="text-xs font-mono text-zinc-400 mt-0.5 truncate">
-                    {mode.formula}
+                    {diatonicRomans}
                   </div>
                 </div>
               </div>
